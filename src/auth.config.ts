@@ -5,17 +5,10 @@ import { SignInFormSchema } from './types/schemas/schema'
 import { IAuth } from './types/interfaces'
 
 const whichTenant = (req: Request): string => {
-  const host = req.headers.get('host')
-  switch (host) {
-    case 'localhost:3000':
-    case '127.0.0.1:3000': {
-      return 'admin'
-    }
-    default: {
-      const tenant = host?.split('.')[0]!
-      return tenant
-    }
-  }
+  if (process.env.TENANT_DOMAIN) return process.env.TENANT_DOMAIN
+  const host = req.headers.get('host') ?? ''
+  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return 'admin'
+  return host.split('.')[0] ?? 'admin'
 }
 
 async function loginRequest(body: { email: string; password: string }, tenant: string): Promise<(IAuth.Response & { tenant: string }) | null> {
@@ -149,4 +142,5 @@ export default {
     error: '/en',
   },
   secret: process.env.BETTER_AUTH_SECRET,
+  trustHost: true,
 } satisfies NextAuthConfig
