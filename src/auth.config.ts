@@ -8,7 +8,7 @@ const whichTenant = (req: Request): string => {
   if (process.env.TENANT_DOMAIN) return process.env.TENANT_DOMAIN
   const host = req.headers.get('host') ?? ''
   if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return 'admin'
-  return host.split('.')[0] ?? 'admin'
+  return  'admin'
 }
 
 async function loginRequest(body: { email: string; password: string }, tenant: string): Promise<(IAuth.Response & { tenant: string }) | null> {
@@ -76,6 +76,7 @@ export default {
         const parsed = SignInFormSchema.safeParse(credentials)
         if (!parsed.success) return null
         const tenant = whichTenant(req as Request)
+        console.log('[auth] tenant resolved:', tenant, '| host:', (req as Request).headers.get('host'))
         const res = await loginRequest(parsed.data, tenant)
         if (!res) return null
         return {
