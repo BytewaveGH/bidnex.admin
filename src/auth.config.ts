@@ -43,9 +43,15 @@ async function refreshAccessToken(tokenObject: any) {
         'X-Refresh-Token': tokenObject.refreshToken as string,
         'X-Tenant-Domain': (tokenObject?.tenant as string) || 'admin',
       },
+      body: JSON.stringify({}),
     })
-    if (!response.ok) return { ...tokenObject, error: 'RefreshAccessTokenError' }
+    if (!response.ok) {
+      const text = await response.text()
+      console.error('[auth] refresh failed:', response.status, text)
+      return { ...tokenObject, error: 'RefreshAccessTokenError' }
+    }
     const data: IAuth.Response = await response.json()
+    console.log('[auth] token refreshed successfully')
     return {
       ...tokenObject,
       userId: data.user.id,
@@ -60,7 +66,8 @@ async function refreshAccessToken(tokenObject: any) {
       refreshTokenExpiry: toAbsoluteExpiry(data.refreshTokenExpiry),
       error: undefined,
     }
-  } catch {
+  } catch (err) {
+    console.error('[auth] refresh threw:', err)
     return { ...tokenObject, error: 'RefreshAccessTokenError' }
   }
 }
@@ -133,6 +140,7 @@ export default {
       session.user.refreshToken = token.refreshToken as string
       session.user.accessTokenExpiry = token.accessTokenExpiry as number
       session.user.refreshTokenExpiry = token.refreshTokenExpiry as number
+      session.user.error = token.error as string | undefined
       return session
     },
   },

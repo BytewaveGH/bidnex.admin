@@ -211,12 +211,14 @@ const LotCard = ({
   auctionEndTime,
   onRemove,
   isRemoving,
+  canRemove,
 }: {
   lot: ILot
   index: number
   auctionEndTime?: string
   onRemove: (id: number) => void
   isRemoving: boolean
+  canRemove: boolean
 }) => {
   const fmt = (v?: number) => v != null ? `GHS ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'
   const displayOrder = lot.lotOrder ?? index + 1
@@ -295,13 +297,15 @@ const LotCard = ({
           </div>
         </div>
 
-        <button
-          onClick={() => onRemove(lot.id)}
-          disabled={isRemoving}
-          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-red-100 text-red-500 text-xs font-semibold hover:bg-red-50 hover:border-red-200 disabled:opacity-40 transition-colors mt-auto"
-        >
-          <Trash2 className="h-3.5 w-3.5" /> Remove from auction
-        </button>
+        {canRemove && (
+          <button
+            onClick={() => onRemove(lot.id)}
+            disabled={isRemoving}
+            className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-red-100 text-red-500 text-xs font-semibold hover:bg-red-50 hover:border-red-200 disabled:opacity-40 transition-colors mt-auto"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Remove from auction
+          </button>
+        )}
       </div>
     </div>
   )
@@ -315,12 +319,14 @@ const LotTimelineRow = ({
   auctionEndTime,
   onRemove,
   isRemoving,
+  canRemove,
 }: {
   lot: ILot
   index: number
   auctionEndTime?: string
   onRemove: (id: number) => void
   isRemoving: boolean
+  canRemove: boolean
 }) => {
   const fmt = (v?: number) => v != null ? `GHS ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '—'
   const displayOrder = lot.lotOrder ?? index + 1
@@ -381,13 +387,15 @@ const LotTimelineRow = ({
       )}
 
       {/* Remove */}
-      <button
-        onClick={() => onRemove(lot.id)}
-        disabled={isRemoving}
-        className="flex-shrink-0 w-8 h-8 rounded-xl border border-red-100 text-red-400 flex items-center justify-center hover:bg-red-50 hover:border-red-200 disabled:opacity-40 transition-colors"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+      {canRemove && (
+        <button
+          onClick={() => onRemove(lot.id)}
+          disabled={isRemoving}
+          className="flex-shrink-0 w-8 h-8 rounded-xl border border-red-100 text-red-400 flex items-center justify-center hover:bg-red-50 hover:border-red-200 disabled:opacity-40 transition-colors"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   )
 }
@@ -746,14 +754,15 @@ const Main = ({ auctionId, locale }: MainProps) => {
               >
                 <Edit2 className="h-4 w-4" /> Edit
               </button>
-              {auction.status === 'pending_review' && (
+              {(auction.status === 'draft' || auction.status === 'pending_review') && (
                 <>
                   <button
                     onClick={handleApprove}
                     disabled={isActioning}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-colors"
                   >
-                    <CheckCircle className="h-4 w-4" /> Approve
+                    <CheckCircle className="h-4 w-4" />
+                    {auction.status === 'draft' ? 'Activate' : 'Approve'}
                   </button>
                   <button
                     onClick={() => setRejectOpen(true)}
@@ -828,14 +837,26 @@ const Main = ({ auctionId, locale }: MainProps) => {
               <Tag className="h-4 w-4 text-endeavour" />
             </div>
             <div>
-              <p className="text-base font-bold text-stone-800">
-                Lots
-                <span className="ml-2 text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                  {lots.length}
-                </span>
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-bold text-stone-800">
+                  Lots
+                  <span className="ml-2 text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                    {lots.length}
+                  </span>
+                </p>
+                {auction?.status === 'active' && (
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-gray-500">
-                {isScheduled ? 'In scheduled order · each slot is live' : 'Items in this auction'}
+                {auction?.status === 'active'
+                  ? 'Auction is live — lots open sequentially'
+                  : isScheduled
+                  ? 'In scheduled order · each slot is live'
+                  : 'Items in this auction'}
               </p>
             </div>
           </div>
@@ -855,12 +876,14 @@ const Main = ({ auctionId, locale }: MainProps) => {
                 <LayoutGrid className="h-4 w-4" />
               </button>
             </div>
-            <button
-              onClick={() => setAddLotsSheetOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-endeavour text-white text-sm font-semibold rounded-xl hover:bg-veniceBlue transition-colors shadow-sm shadow-endeavour/20"
-            >
-              <Plus className="h-4 w-4" /> Add Lots
-            </button>
+            {auction && ['draft', 'pending_review'].includes(auction.status) && (
+              <button
+                onClick={() => setAddLotsSheetOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-endeavour text-white text-sm font-semibold rounded-xl hover:bg-veniceBlue transition-colors shadow-sm shadow-endeavour/20"
+              >
+                <Plus className="h-4 w-4" /> Add Lots
+              </button>
+            )}
           </div>
         </div>
 
@@ -894,6 +917,7 @@ const Main = ({ auctionId, locale }: MainProps) => {
                 auctionEndTime={auction?.endTime}
                 onRemove={handleRemoveLot}
                 isRemoving={removingLotId === lot.id}
+                canRemove={!!auction && ['draft', 'pending_review'].includes(auction.status)}
               />
             ))}
           </div>
@@ -907,6 +931,7 @@ const Main = ({ auctionId, locale }: MainProps) => {
                 auctionEndTime={auction?.endTime}
                 onRemove={handleRemoveLot}
                 isRemoving={removingLotId === lot.id}
+                canRemove={!!auction && ['draft', 'pending_review'].includes(auction.status)}
               />
             ))}
           </div>

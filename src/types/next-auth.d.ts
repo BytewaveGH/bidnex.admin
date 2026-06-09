@@ -12,6 +12,7 @@ export interface ExtendedUser extends DefaultSession['user'] {
   refreshToken: string
   accessTokenExpiry: number
   refreshTokenExpiry: number
+  error?: string
 }
 
 declare module 'next-auth' {
@@ -30,7 +31,7 @@ declare module 'next-auth' {
     refreshTokenExpiry: number
   }
   interface Session {
-    user: ExtendedUser
+    user: ExtendedUser & { error?: string }
   }
 }
 
@@ -47,5 +48,6 @@ declare module 'next-auth/jwt' {
     refreshToken: string
     accessTokenExpiry: number
     refreshTokenExpiry: number
+    error?: string
   }
 }
