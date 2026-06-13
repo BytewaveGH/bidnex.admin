@@ -171,13 +171,14 @@ const Main = () => {
             >
               <Eye className="h-3 w-3" /> View
             </button>
-            {row.status === 'pending_review' && (
+            {(row.status === 'draft' || row.status === 'pending_review') && (
               <>
                 <button
                   onClick={() => handleApprove(row)}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors"
                 >
-                  <CheckCircle className="h-3 w-3" /> Approve
+                  <CheckCircle className="h-3 w-3" />
+                  {row.status === 'draft' ? 'Activate' : 'Approve'}
                 </button>
                 <button
                   onClick={() => setRejectTarget(row)}

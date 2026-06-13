@@ -8,14 +8,14 @@ const whichTenant = (req: Request): string => {
   if (process.env.TENANT_DOMAIN) return process.env.TENANT_DOMAIN
   const host = req.headers.get('host') ?? ''
   if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return 'admin'
-  return  'admin'
+  return 'admin'
 }
 
 async function loginRequest(body: { email: string; password: string }, tenant: string): Promise<(IAuth.Response & { tenant: string }) | null> {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/admin-login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Tenant-Domain': tenant || "admin" },
+      headers: { 'Content-Type': 'application/json', 'X-Tenant-Domain': tenant || 'admin' },
       body: JSON.stringify(body),
     })
     if (!response.ok) {
@@ -41,17 +41,13 @@ async function refreshAccessToken(tokenObject: any) {
       headers: {
         'Content-Type': 'application/json',
         'X-Refresh-Token': tokenObject.refreshToken as string,
-        'X-Tenant-Domain': (tokenObject?.tenant as string) || 'admin',
+        'X-Tenant-Domain':  'admin',
       },
       body: JSON.stringify({}),
     })
-    if (!response.ok) {
-      const text = await response.text()
-      console.error('[auth] refresh failed:', response.status, text)
-      return { ...tokenObject, error: 'RefreshAccessTokenError' }
-    }
+    if (!response.ok) return { ...tokenObject }
     const data: IAuth.Response = await response.json()
-    console.log('[auth] token refreshed successfully')
+    const newRefreshTokenExpiry = toAbsoluteExpiry(data.refreshTokenExpiry)
     return {
       ...tokenObject,
       userId: data.user.id,
@@ -63,12 +59,11 @@ async function refreshAccessToken(tokenObject: any) {
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
       accessTokenExpiry: toAbsoluteExpiry(data.accessTokenExpiry),
-      refreshTokenExpiry: toAbsoluteExpiry(data.refreshTokenExpiry),
-      error: undefined,
+      refreshTokenExpiry: newRefreshTokenExpiry,
+      exp: newRefreshTokenExpiry,
     }
-  } catch (err) {
-    console.error('[auth] refresh threw:', err)
-    return { ...tokenObject, error: 'RefreshAccessTokenError' }
+  } catch {
+    return { ...tokenObject }
   }
 }
 
@@ -123,7 +118,10 @@ export default {
         return token
       }
 
-      const shouldRefreshTime = (token.accessTokenExpiry as number) - 5 * 60 - Math.floor(Date.now() / 1000)
+      const remainingTime = (token.accessTokenExpiry as number) - 5 * 60
+      const currentTimestamp = Math.floor(Date.now() / 1000)
+      const shouldRefreshTime = remainingTime - currentTimestamp
+
       if (shouldRefreshTime > 0) return token
 
       return refreshAccessToken(token)
