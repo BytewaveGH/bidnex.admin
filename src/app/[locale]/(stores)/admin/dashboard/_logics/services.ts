@@ -30,7 +30,7 @@ export const AnalyticsServices = {
   }),
 
   // GET /admin/analytics/heatmap?from=&to=
-  // Returns: number[][] — 7 rows (Mon–Sun) × 14 columns (7am–8pm) bid counts
+  // Returns: HeatmapPoint[] — [{day: 0-6, hour: 0-13, bids}] (day: 0=Mon, hour: 0=7am)
   FetchHeatmap: (params?: { from?: string; to?: string }) => ({
     method: 'GET',
     url: '/admin/analytics/heatmap',
@@ -38,7 +38,7 @@ export const AnalyticsServices = {
   }),
 
   // GET /admin/analytics/payments?from=&to=
-  // Returns: PaymentSplit[] — method name, total amount, percentage share
+  // Returns: { total: number, methods: PaymentMethod[] }
   FetchPaymentMethods: (params?: { from?: string; to?: string }) => ({
     method: 'GET',
     url: '/admin/analytics/payments',
@@ -53,9 +53,9 @@ export const AnalyticsServices = {
     params,
   }),
 
-  // GET /admin/analytics/top-lots?from=&to=&page=&limit=
-  // Returns: { items: TopLot[], total: number }
-  FetchTopLots: (params?: { from?: string; to?: string; page?: number; limit?: number }) => ({
+  // GET /admin/analytics/top-lots?from=&to=
+  // Returns: TopLot[] — top 16 lots sorted by revenue, each with margin %
+  FetchTopLots: (params?: { from?: string; to?: string }) => ({
     method: 'GET',
     url: '/admin/analytics/top-lots',
     params,

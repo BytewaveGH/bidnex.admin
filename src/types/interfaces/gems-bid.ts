@@ -8,29 +8,46 @@ export namespace IAnalytics {
     openDisputes: number
   }
 
+  // GET /admin/analytics/daily → [{date, revenue, bids}]
   export interface DailyPoint {
-    day: string
+    date: string
     revenue: number
-    profit: number
+    bids: number
   }
 
+  // GET /admin/analytics/monthly → [{month, revenue, bids}]
   export interface MonthlyPoint {
     month: string
-    value: number
+    revenue: number
+    bids: number
   }
 
+  // GET /admin/analytics/hourly → [{hour, revenue, bids}]
   export interface HourlyPoint {
     hour: string
     revenue: number
     bids: number
   }
 
-  export interface PaymentSplit {
+  // GET /admin/analytics/heatmap → [{day, hour, bids}] (day: 0=Mon…6=Sun, hour: 0=7am…13=8pm)
+  export interface HeatmapPoint {
+    day: number
+    hour: number
+    bids: number
+  }
+
+  // GET /admin/analytics/payments → {total, methods: PaymentMethod[]}
+  export interface PaymentMethod {
     method: string
     amount: number
     pct: number
   }
+  export interface PaymentsResponse {
+    total: number
+    methods: PaymentMethod[]
+  }
 
+  // GET /admin/analytics/auctions-performance → [{name, revenue, pct, lots, bids}]
   export interface AuctionPerf {
     name: string
     revenue: number
@@ -39,17 +56,13 @@ export namespace IAnalytics {
     bids: number
   }
 
+  // GET /admin/analytics/top-lots → TopLot[] (top 16, sorted by revenue)
   export interface TopLot {
     name: string
     auction: string
     bids: number
     revenue: number
     margin: number
-  }
-
-  export interface TopLotsPage {
-    items: TopLot[]
-    total: number
   }
 }
 

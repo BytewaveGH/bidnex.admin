@@ -21,6 +21,7 @@ import {
   ArrowRight,
   MessageSquare,
 } from 'lucide-react'
+
 import { AgCharts } from 'ag-charts-react'
 import { AgChartOptions } from 'ag-charts-community'
 import { useFetchData } from '@/hooks/use-fetch'
@@ -225,36 +226,62 @@ const Main = () => {
   )
 
   const { data: lotsRaw, isLoading: lotsLoading } = useFetchData(
-    `admin-analytics-lots-${dateFrom}-${dateTo}-p${lotPage}`,
-    AnalyticsServices.FetchTopLots({ from: dateFrom, to: dateTo, page: lotPage, limit: ROWS_PER_PAGE }) as unknown as IGeneric
+    `admin-analytics-lots-${dateFrom}-${dateTo}`,
+    AnalyticsServices.FetchTopLots({ from: dateFrom, to: dateTo }) as unknown as IGeneric
   )
 
-  // ── Type casts ────────────────────────────────────────────────────────────
-  const analytics = analyticsRaw as IAnalytics.Response | undefined
-  const pendingAuctions = (pendingRaw as IAuction[]) ?? []
-  const openDisputes = (disputesRaw as IDispute[]) ?? []
-  const dailyData = (dailyRaw as IAnalytics.DailyPoint[]) ?? []
-  const monthlyData = (monthlyRaw as IAnalytics.MonthlyPoint[]) ?? []
-  const hourlyData = (hourlyRaw as IAnalytics.HourlyPoint[]) ?? []
-  const heatmapMatrix = heatmapRaw as number[][] | null
-  const paymentsData = (paymentsRaw as IAnalytics.PaymentSplit[]) ?? []
-  const auctionPerfData = (auctionPerfRaw as IAnalytics.AuctionPerf[]) ?? []
-  const lotsPage = lotsRaw as IAnalytics.TopLotsPage | undefined
-  const visibleLots = lotsPage?.items ?? []
-  const totalLotPages = lotsPage ? Math.ceil(lotsPage.total / ROWS_PER_PAGE) : 0
+  // ── Type casts (Array.isArray guards prevent .map errors if shape drifts) ──
+  const analytics = analyticsRaw && !Array.isArray(analyticsRaw) ? (analyticsRaw as IAnalytics.Response) : undefined
+  const pendingAuctions: IAuction[] = Array.isArray(pendingRaw) ? (pendingRaw as IAuction[]) : []
+  const openDisputes: IDispute[] = Array.isArray(disputesRaw) ? (disputesRaw as IDispute[]) : []
+  const dailyData: IAnalytics.DailyPoint[] = Array.isArray(dailyRaw) ? (dailyRaw as IAnalytics.DailyPoint[]) : []
+  const monthlyData: IAnalytics.MonthlyPoint[] = Array.isArray(monthlyRaw) ? (monthlyRaw as IAnalytics.MonthlyPoint[]) : []
+  const hourlyData: IAnalytics.HourlyPoint[] = Array.isArray(hourlyRaw) ? (hourlyRaw as IAnalytics.HourlyPoint[]) : []
+  const heatmapPoints: IAnalytics.HeatmapPoint[] = Array.isArray(heatmapRaw) ? (heatmapRaw as IAnalytics.HeatmapPoint[]) : []
+  const paymentsResponse = paymentsRaw && !Array.isArray(paymentsRaw) ? (paymentsRaw as IAnalytics.PaymentsResponse) : undefined
+  const paymentsData: IAnalytics.PaymentMethod[] = Array.isArray(paymentsResponse?.methods) ? paymentsResponse!.methods : []
+  const auctionPerfData: IAnalytics.AuctionPerf[] = Array.isArray(auctionPerfRaw) ? (auctionPerfRaw as IAnalytics.AuctionPerf[]) : []
+  const topLots: IAnalytics.TopLot[] = Array.isArray(lotsRaw) ? (lotsRaw as IAnalytics.TopLot[]) : []
+  const visibleLots = topLots.slice(lotPage * ROWS_PER_PAGE, (lotPage + 1) * ROWS_PER_PAGE)
+  const totalLotPages = Math.ceil(topLots.length / ROWS_PER_PAGE)
 
   // ── Computed ──────────────────────────────────────────────────────────────
-  const hmMax = useMemo(() => (heatmapMatrix ? Math.max(...heatmapMatrix.flat(), 1) : 1), [heatmapMatrix])
+  // Convert flat [{day, hour, bids}] → 7×14 matrix for the heatmap grid
+  const heatmapMatrix = useMemo(() => {
+    const matrix: number[][] = Array.from({ length: 7 }, () => Array(14).fill(0))
+    for (const pt of heatmapPoints) {
+      const d = Math.max(0, Math.min(6, pt.day))
+      const h = Math.max(0, Math.min(13, pt.hour))
+      matrix[d][h] = pt.bids
+    }
+    return matrix
+  }, [heatmapPoints])
+
+  const hmMax = useMemo(() => Math.max(...heatmapMatrix.flat(), 1), [heatmapMatrix])
 
   const dailyOptions: AgChartOptions = useMemo(
     () => ({
       data: dailyData,
       series: [
-        { type: 'bar' as const, xKey: 'day', yKey: 'revenue', yName: 'Revenue', fill: '#0865AC', strokeWidth: 0, cornerRadius: 4 },
-        { type: 'bar' as const, xKey: 'day', yKey: 'profit', yName: 'Profit', fill: '#82B8EE', strokeWidth: 0, cornerRadius: 4 },
+        { type: 'bar' as const, xKey: 'date', yKey: 'revenue', yName: 'Revenue (GHS)', fill: '#0865AC', strokeWidth: 0, cornerRadius: 4 },
+        { type: 'bar' as const, xKey: 'date', yKey: 'bids', yName: 'Bids', fill: '#82B8EE', strokeWidth: 0, cornerRadius: 4 },
       ],
       axes: [
-        { type: 'category' as const, position: 'bottom' as const, label: { fontSize: 11, color: '#9ca3af' }, line: { enabled: false } },
+        {
+          type: 'category' as const,
+          position: 'bottom' as const,
+          label: {
+            fontSize: 11,
+            color: '#9ca3af',
+            formatter: ({ value }: { value: string }) => {
+              if (typeof value === 'string' && value.includes('-')) {
+                try { return new Date(value).toLocaleDateString('en', { month: 'short', day: 'numeric' }) } catch { return value }
+              }
+              return value
+            },
+          },
+          line: { enabled: false },
+        },
         {
           type: 'number' as const,
           position: 'left' as const,
@@ -276,7 +303,7 @@ const Main = () => {
         {
           type: 'area' as const,
           xKey: 'month',
-          yKey: 'value',
+          yKey: 'revenue',
           yName: 'Revenue',
           fill: 'rgba(8,101,172,0.09)',
           stroke: '#0865AC',
@@ -586,7 +613,7 @@ const Main = () => {
           icon={<BarChart2 className="h-4 w-4 text-endeavour" />}
           iconBg="bg-blue-50"
           title="Daily Revenue & Profit"
-          sub="Revenue vs profit per day"
+          sub="Revenue (GHS) and bid count per day"
           action={
             <div className="flex items-center gap-1">
               {DAILY_PRESETS.map((p) => (
@@ -704,7 +731,7 @@ const Main = () => {
         <div className="px-5 pb-5">
           {heatmapLoading ? (
             <ChartSkeleton height={180} />
-          ) : !heatmapMatrix || heatmapMatrix.length === 0 ? (
+          ) : heatmapPoints.length === 0 ? (
             <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No heatmap data for this period</div>
           ) : (
             <div className="overflow-x-auto">
@@ -749,7 +776,7 @@ const Main = () => {
           icon={<span className="text-base leading-none">💎</span>}
           iconBg="bg-amber-50"
           title="Top Lots by Revenue"
-          sub={lotsPage ? `${lotsPage.total} lots this period` : 'Loading…'}
+          sub={lotsLoading ? 'Loading…' : `${topLots.length} lots this period`}
         />
         {lotsLoading ? (
           <div className="px-5 pb-5">
@@ -800,7 +827,7 @@ const Main = () => {
             </div>
             <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50/40 rounded-b-2xl">
               <span className="text-xs text-gray-500">
-                Page {lotPage + 1} of {totalLotPages || 1} · {lotsPage?.total ?? 0} lots
+                Page {lotPage + 1} of {totalLotPages || 1} · {topLots.length} lots
               </span>
               <div className="flex items-center gap-2">
                 <button
