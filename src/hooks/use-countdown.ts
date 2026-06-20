@@ -29,11 +29,7 @@ export const useCountdown = (targetIso: string | undefined): CountdownResult => 
       const h = Math.floor((diff % 86_400_000) / 3_600_000)
       const m = Math.floor((diff % 3_600_000) / 60_000)
       const s = Math.floor((diff % 60_000) / 1_000)
-      const display = d > 0
-        ? `${d}d ${h}h ${m}m ${s}s`
-        : h > 0
-        ? `${h}h ${m}m ${s}s`
-        : `${m}m ${s}s`
+      const display = d > 0 ? `${d}d ${h}h ${m}m ${s}s` : h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`
       setState({ display, isPast: false, diff })
     }
 

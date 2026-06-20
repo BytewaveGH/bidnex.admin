@@ -90,7 +90,10 @@ const CategoryForm = ({ mode, categoryId, initialData, parentOptions, onSuccess 
       <Field label="Name" required error={errors.name} icon={Tag} hint="Must be unique across all categories">
         <input
           value={name}
-          onChange={e => { setName(e.target.value); if (errors.name) setErrors(p => ({ ...p, name: undefined })) }}
+          onChange={(e) => {
+            setName(e.target.value)
+            if (errors.name) setErrors((p) => ({ ...p, name: undefined }))
+          }}
           placeholder="e.g. Electronics, Jewellery..."
           className={`border rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour transition-all placeholder-gray-400 ${
             errors.name ? 'border-red-300 bg-red-50/30' : 'border-gray-200 bg-gray-50/50'
@@ -102,7 +105,7 @@ const CategoryForm = ({ mode, categoryId, initialData, parentOptions, onSuccess 
       <Field label="Description" icon={FileText} hint="Optional — helps vendors choose the right category">
         <textarea
           value={description}
-          onChange={e => setDescription(e.target.value)}
+          onChange={(e) => setDescription(e.target.value)}
           rows={3}
           placeholder="Brief description of what items belong in this category..."
           className="border border-gray-200 bg-gray-50/50 rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour resize-none placeholder-gray-400 transition-all"
@@ -112,7 +115,10 @@ const CategoryForm = ({ mode, categoryId, initialData, parentOptions, onSuccess 
       <Field label="Icon URL" error={errors.iconUrl} icon={LinkIcon} hint="Optional — link to an SVG or PNG icon">
         <input
           value={iconUrl}
-          onChange={e => { setIconUrl(e.target.value); if (errors.iconUrl) setErrors(p => ({ ...p, iconUrl: undefined })) }}
+          onChange={(e) => {
+            setIconUrl(e.target.value)
+            if (errors.iconUrl) setErrors((p) => ({ ...p, iconUrl: undefined }))
+          }}
           placeholder="https://storage.example.com/icons/..."
           className={`border rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour transition-all placeholder-gray-400 ${
             errors.iconUrl ? 'border-red-300 bg-red-50/30' : 'border-gray-200 bg-gray-50/50'
@@ -120,7 +126,14 @@ const CategoryForm = ({ mode, categoryId, initialData, parentOptions, onSuccess 
         />
         {iconUrl && /^https?:\/\/.+/.test(iconUrl) && (
           <div className="flex items-center gap-2 mt-1">
-            <img src={iconUrl} alt="icon preview" className="w-6 h-6 rounded object-contain border border-gray-200" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            <img
+              src={iconUrl}
+              alt="icon preview"
+              className="w-6 h-6 rounded object-contain border border-gray-200"
+              onError={(e) => {
+                ;(e.target as HTMLImageElement).style.display = 'none'
+              }}
+            />
             <span className="text-xs text-gray-400">Preview</span>
           </div>
         )}
@@ -130,12 +143,14 @@ const CategoryForm = ({ mode, categoryId, initialData, parentOptions, onSuccess 
         <div className="relative">
           <select
             value={parentId}
-            onChange={e => setParentId(e.target.value === '' ? '' : Number(e.target.value))}
+            onChange={(e) => setParentId(e.target.value === '' ? '' : Number(e.target.value))}
             className="w-full appearance-none border border-gray-200 bg-gray-50/50 rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour transition-all pr-9"
           >
             <option value="">None (top-level category)</option>
-            {parentOptions.map(opt => (
-              <option key={opt.id} value={opt.id}>{opt.name}</option>
+            {parentOptions.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.name}
+              </option>
             ))}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -148,9 +163,7 @@ const CategoryForm = ({ mode, categoryId, initialData, parentOptions, onSuccess 
           disabled={isSubmitting}
           className="w-full py-3 rounded-xl bg-endeavour text-white text-sm font-bold hover:bg-veniceBlue disabled:opacity-50 transition-colors shadow-sm shadow-endeavour/20"
         >
-          {isSubmitting
-            ? (mode === 'create' ? 'Creating...' : 'Saving...')
-            : (mode === 'create' ? 'Create Category' : 'Save Changes')}
+          {isSubmitting ? (mode === 'create' ? 'Creating...' : 'Saving...') : mode === 'create' ? 'Create Category' : 'Save Changes'}
         </button>
       </div>
     </form>

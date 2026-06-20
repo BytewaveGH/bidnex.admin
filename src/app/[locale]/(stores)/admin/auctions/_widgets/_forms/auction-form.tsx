@@ -73,7 +73,12 @@ const AuctionForm = ({ mode, auctionId, initialData, onSuccess }: AuctionFormPro
     return Object.keys(e).length === 0
   }
 
-  const clearError = (key: string) => setErrors(p => { const n = { ...p }; delete n[key]; return n })
+  const clearError = (key: string) =>
+    setErrors((p) => {
+      const n = { ...p }
+      delete n[key]
+      return n
+    })
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,7 +115,10 @@ const AuctionForm = ({ mode, auctionId, initialData, onSuccess }: AuctionFormPro
       <Field label="Title" required error={errors.title} icon={Type} hint="Shown to bidders — be descriptive">
         <input
           value={title}
-          onChange={e => { setTitle(e.target.value); clearError('title') }}
+          onChange={(e) => {
+            setTitle(e.target.value)
+            clearError('title')
+          }}
           placeholder="e.g. Electronics Clearance — June 2026"
           className={`border rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour transition-all placeholder-gray-400 ${errors.title ? 'border-red-300 bg-red-50/30' : 'border-gray-200 bg-gray-50/50'}`}
           autoFocus
@@ -121,7 +129,7 @@ const AuctionForm = ({ mode, auctionId, initialData, onSuccess }: AuctionFormPro
       <Field label="Description" icon={FileText} hint="Optional overview of what's being auctioned">
         <textarea
           value={description}
-          onChange={e => setDescription(e.target.value)}
+          onChange={(e) => setDescription(e.target.value)}
           rows={3}
           placeholder="Describe the auction, featured items, or bidding rules..."
           className="border border-gray-200 bg-gray-50/50 rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour resize-none placeholder-gray-400 transition-all"
@@ -133,7 +141,7 @@ const AuctionForm = ({ mode, auctionId, initialData, onSuccess }: AuctionFormPro
         <Field label="Location Name" icon={MapPin}>
           <input
             value={locationName}
-            onChange={e => setLocationName(e.target.value)}
+            onChange={(e) => setLocationName(e.target.value)}
             placeholder="e.g. Accra"
             className="border border-gray-200 bg-gray-50/50 rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour transition-all placeholder-gray-400"
           />
@@ -141,7 +149,7 @@ const AuctionForm = ({ mode, auctionId, initialData, onSuccess }: AuctionFormPro
         <Field label="Address" icon={MapPin}>
           <input
             value={locationAddress}
-            onChange={e => setLocationAddress(e.target.value)}
+            onChange={(e) => setLocationAddress(e.target.value)}
             placeholder="e.g. Ring Road, Accra"
             className="border border-gray-200 bg-gray-50/50 rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour transition-all placeholder-gray-400"
           />
@@ -154,7 +162,11 @@ const AuctionForm = ({ mode, auctionId, initialData, onSuccess }: AuctionFormPro
           <input
             type="datetime-local"
             value={startTime}
-            onChange={e => { setStartTime(e.target.value); clearError('startTime'); clearError('endTime') }}
+            onChange={(e) => {
+              setStartTime(e.target.value)
+              clearError('startTime')
+              clearError('endTime')
+            }}
             className={`border rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour transition-all ${errors.startTime ? 'border-red-300 bg-red-50/30' : 'border-gray-200 bg-gray-50/50'}`}
           />
         </Field>
@@ -162,7 +174,10 @@ const AuctionForm = ({ mode, auctionId, initialData, onSuccess }: AuctionFormPro
           <input
             type="datetime-local"
             value={endTime}
-            onChange={e => { setEndTime(e.target.value); clearError('endTime') }}
+            onChange={(e) => {
+              setEndTime(e.target.value)
+              clearError('endTime')
+            }}
             min={startTime}
             className={`border rounded-xl px-3.5 py-2.5 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-endeavour/30 focus:border-endeavour transition-all ${errors.endTime ? 'border-red-300 bg-red-50/30' : 'border-gray-200 bg-gray-50/50'}`}
           />
@@ -180,10 +195,12 @@ const AuctionForm = ({ mode, auctionId, initialData, onSuccess }: AuctionFormPro
         </div>
         <button
           type="button"
-          onClick={() => setIsFeatured(p => !p)}
+          onClick={() => setIsFeatured((p) => !p)}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isFeatured ? 'bg-amber-500' : 'bg-gray-200'}`}
         >
-          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${isFeatured ? 'translate-x-6' : 'translate-x-1'}`} />
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${isFeatured ? 'translate-x-6' : 'translate-x-1'}`}
+          />
         </button>
       </div>
 
@@ -194,8 +211,12 @@ const AuctionForm = ({ mode, auctionId, initialData, onSuccess }: AuctionFormPro
           className="w-full py-3 rounded-xl bg-endeavour text-white text-sm font-bold hover:bg-veniceBlue disabled:opacity-50 transition-colors shadow-sm shadow-endeavour/20"
         >
           {isSubmitting
-            ? (mode === 'create' ? 'Creating Auction...' : 'Saving Changes...')
-            : (mode === 'create' ? 'Create Auction' : 'Save Changes')}
+            ? mode === 'create'
+              ? 'Creating Auction...'
+              : 'Saving Changes...'
+            : mode === 'create'
+              ? 'Create Auction'
+              : 'Save Changes'}
         </button>
       </div>
     </form>

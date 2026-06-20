@@ -1,10 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import {
-  Package, CheckCircle, XCircle, X, Search, Tag, AlertCircle,
-  Clock, ChevronRight,
-} from 'lucide-react'
+import { Package, CheckCircle, XCircle, X, Search, Tag, AlertCircle, Clock, ChevronRight } from 'lucide-react'
 import { useFetchData } from '@/hooks/use-fetch'
 import { useAxios } from '@/hooks/use-axios'
 import { IGeneric } from '@/types/interfaces'
@@ -17,22 +14,24 @@ import { toast } from 'sonner'
 type FilterReviewStatus = 'all' | LotReviewStatus
 
 const REVIEW_STATUS_STYLES: Record<LotReviewStatus, string> = {
-  draft:     'bg-gray-100 text-gray-600 border border-gray-200',
+  draft: 'bg-gray-100 text-gray-600 border border-gray-200',
   submitted: 'bg-amber-50 text-amber-700 border border-amber-200',
-  approved:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  rejected:  'bg-red-50 text-red-600 border border-red-200',
+  approved: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  rejected: 'bg-red-50 text-red-600 border border-red-200',
 }
 
 const FILTER_TABS: { key: FilterReviewStatus; label: string }[] = [
-  { key: 'all',       label: 'All' },
+  { key: 'all', label: 'All' },
   { key: 'submitted', label: 'Pending Review' },
-  { key: 'approved',  label: 'Approved' },
-  { key: 'rejected',  label: 'Rejected' },
-  { key: 'draft',     label: 'Draft' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'rejected', label: 'Rejected' },
+  { key: 'draft', label: 'Draft' },
 ]
 
 const LotReviewBadge = ({ status }: { status: LotReviewStatus }) => (
-  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize ${REVIEW_STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-500'}`}>
+  <span
+    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize ${REVIEW_STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-500'}`}
+  >
     {status}
   </span>
 )
@@ -50,8 +49,7 @@ const LotRow = ({
   onReject: (lot: ILot) => void
   isActioning: boolean
 }) => {
-  const fmt = (v: number) =>
-    `GHS ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+  const fmt = (v: number) => `GHS ${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
   const canAct = lot.reviewStatus === 'submitted'
 
   return (
@@ -78,9 +76,7 @@ const LotRow = ({
                 </span>
               )}
             </div>
-            {lot.description && (
-              <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{lot.description}</p>
-            )}
+            {lot.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{lot.description}</p>}
             <div className="flex items-center gap-4 mt-2 flex-wrap">
               <span className="text-xs text-gray-500">
                 Starting: <strong className="text-stone-700">{fmt(lot.startingBid)}</strong>
@@ -148,20 +144,18 @@ const Main = () => {
 
   const fetchParams = activeFilter === 'all' ? undefined : { reviewStatus: activeFilter }
 
-  const { data: lotsRaw, isLoading, refetch } = useFetchData(
-    `admin-lots-${activeFilter}`,
-    LotServices.FetchAll(fetchParams) as unknown as IGeneric,
-  )
+  const {
+    data: lotsRaw,
+    isLoading,
+    refetch,
+  } = useFetchData(`admin-lots-${activeFilter}`, LotServices.FetchAll(fetchParams) as unknown as IGeneric)
   const lots = (lotsRaw as ILot[]) ?? []
 
   const filtered = search
-    ? lots.filter(l =>
-        l.title.toLowerCase().includes(search.toLowerCase()) ||
-        String(l.vendorId).includes(search)
-      )
+    ? lots.filter((l) => l.title.toLowerCase().includes(search.toLowerCase()) || String(l.vendorId).includes(search))
     : lots
 
-  const submittedCount = lots.filter(l => l.reviewStatus === 'submitted').length
+  const submittedCount = lots.filter((l) => l.reviewStatus === 'submitted').length
 
   const handleApprove = async (id: number) => {
     setActioningId(id)
@@ -197,9 +191,7 @@ const Main = () => {
     }
   }
 
-  const Skeleton = () => (
-    <div className="animate-pulse bg-gradient-to-r from-gray-100 to-gray-50 rounded-2xl h-24" />
-  )
+  const Skeleton = () => <div className="animate-pulse bg-gradient-to-r from-gray-100 to-gray-50 rounded-2xl h-24" />
 
   return (
     <main className="w-full flex flex-col gap-5">
@@ -207,9 +199,7 @@ const Main = () => {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-stone-800 tracking-tight">Vendor Lots</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Review and approve lots submitted by vendors before assigning them to auctions
-          </p>
+          <p className="text-sm text-gray-500 mt-1">Review and approve lots submitted by vendors before assigning them to auctions</p>
         </div>
         {submittedCount > 0 && activeFilter !== 'submitted' && (
           <button
@@ -226,14 +216,12 @@ const Main = () => {
       {/* Filter tabs + search */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="flex items-center gap-1.5 bg-gray-100/80 p-1 rounded-xl flex-wrap">
-          {FILTER_TABS.map(tab => (
+          {FILTER_TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveFilter(tab.key)}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeFilter === tab.key
-                  ? 'bg-white text-stone-800 shadow-sm'
-                  : 'text-gray-500 hover:text-stone-700'
+                activeFilter === tab.key ? 'bg-white text-stone-800 shadow-sm' : 'text-gray-500 hover:text-stone-700'
               }`}
             >
               {tab.label}
@@ -244,7 +232,7 @@ const Main = () => {
           <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Search lots or vendor ID..."
             className="bg-transparent text-sm text-stone-700 focus:outline-none placeholder-gray-400 flex-1"
           />
@@ -259,7 +247,9 @@ const Main = () => {
       {/* List */}
       {isLoading ? (
         <div className="flex flex-col gap-3">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} />)}
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-gray-200 flex flex-col items-center justify-center py-20 gap-3">
@@ -267,20 +257,12 @@ const Main = () => {
             <Package className="h-7 w-7 text-gray-300" />
           </div>
           <p className="text-sm font-semibold text-stone-700">No lots found</p>
-          <p className="text-xs text-gray-400">
-            {search ? 'Try adjusting your search' : 'No lots match the selected status'}
-          </p>
+          <p className="text-xs text-gray-400">{search ? 'Try adjusting your search' : 'No lots match the selected status'}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {filtered.map(lot => (
-            <LotRow
-              key={lot.id}
-              lot={lot}
-              onApprove={handleApprove}
-              onReject={openReject}
-              isActioning={actioningId === lot.id}
-            />
+          {filtered.map((lot) => (
+            <LotRow key={lot.id} lot={lot} onApprove={handleApprove} onReject={openReject} isActioning={actioningId === lot.id} />
           ))}
         </div>
       )}
@@ -300,7 +282,10 @@ const Main = () => {
                 </div>
               </div>
               <button
-                onClick={() => { setRejectTarget(null); setRejectReason('') }}
+                onClick={() => {
+                  setRejectTarget(null)
+                  setRejectReason('')
+                }}
                 className="text-gray-400 hover:text-gray-600 p-1"
               >
                 <X className="h-4 w-4" />
@@ -310,9 +295,7 @@ const Main = () => {
             <div className="bg-amber-50 rounded-xl px-3 py-2.5">
               <p className="text-xs text-amber-600 font-medium">Lot</p>
               <p className="text-sm font-semibold text-stone-800 mt-0.5">{rejectTarget.title}</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Vendor {rejectTarget.vendorName ?? `#${rejectTarget.vendorId}`}
-              </p>
+              <p className="text-xs text-gray-500 mt-0.5">Vendor {rejectTarget.vendorName ?? `#${rejectTarget.vendorId}`}</p>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -321,7 +304,7 @@ const Main = () => {
               </label>
               <textarea
                 value={rejectReason}
-                onChange={e => setRejectReason(e.target.value)}
+                onChange={(e) => setRejectReason(e.target.value)}
                 rows={4}
                 placeholder="Explain why this lot is being rejected..."
                 className="border border-gray-200 rounded-xl px-3.5 py-3 text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 resize-none placeholder-gray-400 transition-all"
@@ -331,7 +314,10 @@ const Main = () => {
 
             <div className="flex gap-2.5">
               <button
-                onClick={() => { setRejectTarget(null); setRejectReason('') }}
+                onClick={() => {
+                  setRejectTarget(null)
+                  setRejectReason('')
+                }}
                 className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
               >
                 Cancel

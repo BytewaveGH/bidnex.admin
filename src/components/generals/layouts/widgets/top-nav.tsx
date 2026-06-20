@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import React, { Fragment } from 'react'
 import ProfileAvatar from './profile-avatar'
@@ -10,14 +10,14 @@ interface TopNavProps {
   trigger?: any
 }
 
-const TopNav = ({trigger}:TopNavProps) => {
+const TopNav = ({ trigger }: TopNavProps) => {
   const { data: session } = useSession()
 
   const username = session?.user?.username ?? ''
   const email = session?.user?.email ?? ''
   const initial = username[0]?.toUpperCase() ?? 'U'
 
-  const navItems= [
+  const navItems = [
     {
       id: 6,
       label: '',
@@ -31,7 +31,7 @@ const TopNav = ({trigger}:TopNavProps) => {
   ]
 
   return (
-    <main className='w-full'>
+    <main className="w-full">
       <section className={cn('w-full h-full flex justify-between items-center px-2 border-slate-100  border-b-2 ')}>
         {/* Left Side */}
         <aside className={cn('w-[20%] flex items-center pl-2 space-x-2')}>

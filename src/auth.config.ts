@@ -11,7 +11,10 @@ const whichTenant = (req: Request): string => {
   return 'admin'
 }
 
-async function loginRequest(body: { email: string; password: string }, tenant: string): Promise<(IAuth.Response & { tenant: string }) | null> {
+async function loginRequest(
+  body: { email: string; password: string },
+  tenant: string
+): Promise<(IAuth.Response & { tenant: string }) | null> {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/admin-login`, {
       method: 'POST',
@@ -31,8 +34,7 @@ async function loginRequest(body: { email: string; password: string }, tenant: s
   }
 }
 
-const toAbsoluteExpiry = (v: number) =>
-  v < 86400 ? Math.floor(Date.now() / 1000) + v : v
+const toAbsoluteExpiry = (v: number) => (v < 86400 ? Math.floor(Date.now() / 1000) + v : v)
 
 async function refreshAccessToken(tokenObject: any) {
   try {
@@ -41,7 +43,7 @@ async function refreshAccessToken(tokenObject: any) {
       headers: {
         'Content-Type': 'application/json',
         'X-Refresh-Token': tokenObject.refreshToken as string,
-        'X-Tenant-Domain':  'admin',
+        'X-Tenant-Domain': 'admin',
       },
       body: JSON.stringify({}),
     })

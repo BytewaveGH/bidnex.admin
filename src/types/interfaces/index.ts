@@ -8,24 +8,22 @@ export interface ISubGeneric {
 
 export namespace IAuth {
   export interface Response {
-    
-      accessToken: string
-      refreshToken: string
-      accessTokenExpiry: number
-      refreshTokenExpiry: number
-      user: {
-        id: number
-        username: string
-        accountType: string
-        avatar: string
-        phone: string
-        email: string
-        createdAt: string
-        updatedAt: string
-      }
+    accessToken: string
+    refreshToken: string
+    accessTokenExpiry: number
+    refreshTokenExpiry: number
+    user: {
+      id: number
+      username: string
+      accountType: string
+      avatar: string
+      phone: string
+      email: string
+      createdAt: string
+      updatedAt: string
     }
   }
-
+}
 
 export interface UserPayload {
   data: {

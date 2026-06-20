@@ -5,7 +5,6 @@ import byteWaveImg from '@/assets/images/byte.png'
 import SignInForm from './widgets/forms/sign-in'
 
 export default function SignIn() {
-
   return (
     <main className=" max-h-screen  items-center ">
       <section id="login-wrapper" className="flex">

@@ -33,7 +33,10 @@ apiClient.interceptors.response.use(
     if (isRefreshing) {
       return new Promise<any>((resolve, reject) => {
         refreshQueue.push((newToken) => {
-          if (!newToken) { reject(error); return }
+          if (!newToken) {
+            reject(error)
+            return
+          }
           original.headers = { ...original.headers, Authorization: `Bearer ${newToken}` }
           resolve(apiClient(original))
         })
@@ -47,19 +50,19 @@ apiClient.interceptors.response.use(
       const session = await getSession()
 
       if (!session?.user?.accessToken) {
-        refreshQueue.forEach(cb => cb(null))
+        refreshQueue.forEach((cb) => cb(null))
         refreshQueue = []
         signOut({ callbackUrl: '/en' })
         return Promise.reject(error)
       }
 
       const newToken = session.user.accessToken
-      refreshQueue.forEach(cb => cb(newToken))
+      refreshQueue.forEach((cb) => cb(newToken))
       refreshQueue = []
       original.headers = { ...original.headers, Authorization: `Bearer ${newToken}` }
       return apiClient(original)
     } catch {
-      refreshQueue.forEach(cb => cb(null))
+      refreshQueue.forEach((cb) => cb(null))
       refreshQueue = []
       return Promise.reject(error)
     } finally {
