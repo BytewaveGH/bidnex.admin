@@ -291,7 +291,10 @@ const Main = () => {
         {STATUS_FILTERS.map((f) => (
           <button
             key={f.value}
-            onClick={() => { setStatusFilter(f.value); setPage(0) }}
+            onClick={() => {
+              setStatusFilter(f.value)
+              setPage(0)
+            }}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
               statusFilter === f.value
                 ? (STATUS_META[f.value as DisputeStatus]?.pill ?? 'bg-stone-800 text-white')

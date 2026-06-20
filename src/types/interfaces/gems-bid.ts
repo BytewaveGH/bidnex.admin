@@ -7,6 +7,50 @@ export namespace IAnalytics {
     totalRevenue: number
     openDisputes: number
   }
+
+  export interface DailyPoint {
+    day: string
+    revenue: number
+    profit: number
+  }
+
+  export interface MonthlyPoint {
+    month: string
+    value: number
+  }
+
+  export interface HourlyPoint {
+    hour: string
+    revenue: number
+    bids: number
+  }
+
+  export interface PaymentSplit {
+    method: string
+    amount: number
+    pct: number
+  }
+
+  export interface AuctionPerf {
+    name: string
+    revenue: number
+    pct: number
+    lots: number
+    bids: number
+  }
+
+  export interface TopLot {
+    name: string
+    auction: string
+    bids: number
+    revenue: number
+    margin: number
+  }
+
+  export interface TopLotsPage {
+    items: TopLot[]
+    total: number
+  }
 }
 
 export type AuctionStatus = 'draft' | 'pending_review' | 'active' | 'ended' | 'cancelled'

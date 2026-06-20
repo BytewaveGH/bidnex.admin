@@ -276,7 +276,10 @@ const Main = () => {
         {STATUS_FILTERS.map((f) => (
           <button
             key={f.value}
-            onClick={() => { setStatusFilter(f.value); setPage(0) }}
+            onClick={() => {
+              setStatusFilter(f.value)
+              setPage(0)
+            }}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
               statusFilter === f.value
                 ? (STATUS_STYLES[f.value as AuctionStatus]?.pill ?? 'bg-stone-800 text-white')
@@ -291,12 +294,24 @@ const Main = () => {
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { setSearch(searchInput); setPage(0) } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setSearch(searchInput)
+                setPage(0)
+              }
+            }}
             placeholder="Search auctions…"
             className="flex-1 bg-transparent text-sm text-stone-700 focus:outline-none placeholder-gray-400"
           />
           {searchInput && (
-            <button onClick={() => { setSearch(''); setSearchInput(''); setPage(0) }} className="text-gray-400 hover:text-red-400 transition-colors">
+            <button
+              onClick={() => {
+                setSearch('')
+                setSearchInput('')
+                setPage(0)
+              }}
+              className="text-gray-400 hover:text-red-400 transition-colors"
+            >
               <X className="h-3.5 w-3.5" />
             </button>
           )}

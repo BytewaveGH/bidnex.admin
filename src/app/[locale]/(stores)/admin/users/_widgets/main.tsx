@@ -453,7 +453,10 @@ const Main = () => {
         {TYPE_FILTERS.map((f) => (
           <button
             key={f.value}
-            onClick={() => { setAccountTypeFilter(f.value); setPage(0) }}
+            onClick={() => {
+              setAccountTypeFilter(f.value)
+              setPage(0)
+            }}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
               accountTypeFilter === f.value ? 'bg-endeavour text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
@@ -465,10 +468,17 @@ const Main = () => {
         {(['', 'active', 'suspended'] as const).map((v) => (
           <button
             key={v}
-            onClick={() => { setStatusFilter(v); setPage(0) }}
+            onClick={() => {
+              setStatusFilter(v)
+              setPage(0)
+            }}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
               statusFilter === v
-                ? v === '' ? 'bg-stone-800 text-white' : v === 'active' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                ? v === ''
+                  ? 'bg-stone-800 text-white'
+                  : v === 'active'
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-red-500 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -480,12 +490,24 @@ const Main = () => {
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { setSearch(searchInput); setPage(0) } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setSearch(searchInput)
+                setPage(0)
+              }
+            }}
             placeholder="Search by username or email…"
             className="flex-1 bg-transparent text-sm text-stone-700 focus:outline-none placeholder-gray-400"
           />
           {searchInput && (
-            <button onClick={() => { setSearch(''); setSearchInput(''); setPage(0) }} className="text-gray-400 hover:text-red-400 transition-colors">
+            <button
+              onClick={() => {
+                setSearch('')
+                setSearchInput('')
+                setPage(0)
+              }}
+              className="text-gray-400 hover:text-red-400 transition-colors"
+            >
               <X className="h-3.5 w-3.5" />
             </button>
           )}
