@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Gavel, Tag, Users, AlertCircle, Package } from 'lucide-react'
+import { LayoutDashboard, Gavel, Tag, Users, AlertCircle, Package, Landmark } from 'lucide-react'
 import { ITopNavItems } from './interface'
 
 export const topNavItems: ITopNavItems[] = [{ id: 1, label: '', content: '' }]
@@ -24,6 +24,10 @@ export const sidebarItems = [
   {
     title: 'Users',
     items: [{ label: 'All Users', href: '/en/admin/users', icon: Users }],
+  },
+  {
+    title: 'Finance',
+    items: [{ label: 'Finance & Payouts', href: '/en/admin/finance', icon: Landmark }],
   },
   {
     title: 'Support',

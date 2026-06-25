@@ -1,42 +1,39 @@
 export namespace IAnalytics {
-  export interface Response {
-    totalUsers: number
-    totalAuctions: number
-    activeAuctions: number
-    totalBidsToday: number
+  export interface Kpis {
     totalRevenue: number
+    revenueChange: number
+    activeAuctions: number
+    bidsToday: number
     openDisputes: number
+    totalUsers: number
   }
 
-  // GET /admin/analytics/daily → [{date, revenue, bids}]
   export interface DailyPoint {
     date: string
     revenue: number
     bids: number
   }
 
-  // GET /admin/analytics/monthly → [{month, revenue, bids}]
   export interface MonthlyPoint {
     month: string
     revenue: number
     bids: number
   }
 
-  // GET /admin/analytics/hourly → [{hour, revenue, bids}]
+  // hour is numeric 0-23
   export interface HourlyPoint {
-    hour: string
+    hour: number
     revenue: number
     bids: number
   }
 
-  // GET /admin/analytics/heatmap → [{day, hour, bids}] (day: 0=Mon…6=Sun, hour: 0=7am…13=8pm)
+  // day: 0=Mon…6=Sun, hour: 0-23
   export interface HeatmapPoint {
     day: number
     hour: number
     bids: number
   }
 
-  // GET /admin/analytics/payments → {total, methods: PaymentMethod[]}
   export interface PaymentMethod {
     method: string
     amount: number
@@ -47,22 +44,54 @@ export namespace IAnalytics {
     methods: PaymentMethod[]
   }
 
-  // GET /admin/analytics/auctions-performance → [{name, revenue, pct, lots, bids}]
   export interface AuctionPerf {
-    name: string
+    id: number
+    title: string
     revenue: number
-    pct: number
-    lots: number
-    bids: number
+    lotsCount: number
+    soldCount: number
+    bidCount: number
   }
 
-  // GET /admin/analytics/top-lots → TopLot[] (top 16, sorted by revenue)
   export interface TopLot {
-    name: string
-    auction: string
-    bids: number
-    revenue: number
+    id: number
+    title: string
+    startingBid: number
+    currentBid: number
+    bidCount: number
     margin: number
+    status: string
+    auctionId?: number
+    auctionTitle?: string
+  }
+
+  export interface Insights {
+    revenueVsPrevPeriod: number
+    avgBidsPerLot: number
+    disputeRate: number
+    topAuction: string
+    topAuctionRevenue: number
+    peakHour: number
+    newUsersInPeriod: number
+  }
+
+  export interface ActionsNeeded {
+    pendingAuctions: number
+    pendingLots: number
+    openDisputes: number
+  }
+
+  // GET /admin/analytics?from=&to= — unified response
+  export interface UnifiedResponse {
+    kpis: Kpis
+    dailyRevenue: DailyPoint[]
+    monthlyRevenue: MonthlyPoint[]
+    hourlyActivity: HourlyPoint[]
+    heatmap: HeatmapPoint[]
+    topLots: TopLot[]
+    auctionPerformance: AuctionPerf[]
+    actionsNeeded: ActionsNeeded
+    insights: Insights
   }
 }
 
@@ -184,6 +213,35 @@ export interface ILot {
   lotOrder?: number
   bidStartTime?: string
   bidEndTime?: string
+  createdAt: string
+}
+
+// ─── Finance / Payouts ───────────────────────────────────────────────────────
+
+export type PayoutStatus = 'completed' | 'failed' | 'pending_review'
+
+export interface IFinanceStats {
+  totalVolume: number
+  totalPlatformFees: number
+  totalTransferred: number
+  totalPayouts: number
+  successfulPayouts: number
+  failedPayouts: number
+  pendingReview: number
+}
+
+export interface IPayout {
+  id: number
+  lotId: number
+  lotTitle: string
+  vendorId: number
+  vendorName?: string
+  grossAmount: number
+  platformCharge: number
+  transferAmount: number
+  status: PayoutStatus
+  failureReason?: string
+  moolreReference?: string
   createdAt: string
 }
 

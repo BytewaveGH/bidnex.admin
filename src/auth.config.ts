@@ -47,11 +47,15 @@ async function refreshAccessToken(tokenObject: any) {
       },
       body: JSON.stringify({}),
     })
-    if (!response.ok) return { ...tokenObject }
+    if (!response.ok) {
+      console.error('[auth] refresh failed:', response.status)
+      return { ...tokenObject, error: 'RefreshAccessTokenError' }
+    }
     const data: IAuth.Response = await response.json()
     const newRefreshTokenExpiry = toAbsoluteExpiry(data.refreshTokenExpiry)
     return {
       ...tokenObject,
+      error: undefined,
       userId: data.user.id,
       username: data.user.username,
       accountType: data.user.accountType,
@@ -64,8 +68,9 @@ async function refreshAccessToken(tokenObject: any) {
       refreshTokenExpiry: newRefreshTokenExpiry,
       exp: newRefreshTokenExpiry,
     }
-  } catch {
-    return { ...tokenObject }
+  } catch (err) {
+    console.error('[auth] refresh threw:', err)
+    return { ...tokenObject, error: 'RefreshAccessTokenError' }
   }
 }
 

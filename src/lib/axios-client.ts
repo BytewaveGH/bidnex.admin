@@ -49,7 +49,8 @@ apiClient.interceptors.response.use(
       // The JWT callback detects the expired access token and calls refreshAccessToken.
       const session = await getSession()
 
-      if (!session?.user?.accessToken) {
+      const failed = !session?.user?.accessToken || (session.user as any).error === 'RefreshAccessTokenError'
+      if (failed) {
         refreshQueue.forEach((cb) => cb(null))
         refreshQueue = []
         signOut({ callbackUrl: '/en' })
