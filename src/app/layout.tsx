@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 
 import type { Metadata } from "next";
 
+import { QueryProvider } from "@/components/providers/query-provider";
+import { SessionGuard } from "@/components/providers/session-guard";
+import { SessionProvider } from "@/components/providers/session-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_CONFIG } from "@/config/app-config";
@@ -37,18 +40,23 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <ThemeBootScript />
       </head>
       <body className={`${fontVars} min-h-screen antialiased`}>
-        <TooltipProvider>
-          <PreferencesStoreProvider
-            themeMode={theme_mode}
-            themePreset={theme_preset}
-            contentLayout={content_layout}
-            navbarStyle={navbar_style}
-            font={font}
-          >
-            {children}
-            <Toaster />
-          </PreferencesStoreProvider>
-        </TooltipProvider>
+        <QueryProvider>
+          <SessionProvider>
+            <SessionGuard />
+            <TooltipProvider>
+              <PreferencesStoreProvider
+                themeMode={theme_mode}
+                themePreset={theme_preset}
+                contentLayout={content_layout}
+                navbarStyle={navbar_style}
+                font={font}
+              >
+                {children}
+                <Toaster />
+              </PreferencesStoreProvider>
+            </TooltipProvider>
+          </SessionProvider>
+        </QueryProvider>
       </body>
     </html>
   );

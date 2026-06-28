@@ -1,8 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
+import { useRouter } from "next/navigation";
+
 import { zodResolver } from "@hookform/resolvers/zod";
+import { signIn } from "next-auth/react";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -16,8 +20,13 @@ const formSchema = z.object({
   remember: z.boolean().optional(),
 });
 
+type FormValues = z.infer<typeof formSchema>;
+
 export function LoginForm() {
-  const form = useForm<z.infer<typeof formSchema>>({
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
@@ -26,14 +35,39 @@ export function LoginForm() {
     },
   });
 
-  const onSubmit = (data: z.infer<typeof formSchema>) => {
-    toast("You submitted the following values", {
-      description: (
-        <pre className="mt-2 w-[320px] rounded-md bg-neutral-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
+  const { isSubmitting } = form.formState;
+
+  useEffect(() => {
+    const saved = localStorage.getItem("login-remember");
+    if (saved) {
+      try {
+        const { email, password } = JSON.parse(saved) as { email: string; password: string };
+        form.reset({ email, password, remember: true });
+      } catch {
+        localStorage.removeItem("login-remember");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.reset]);
+
+  const onSubmit = async (data: FormValues) => {
+    setError(null);
+    if (data.remember) {
+      localStorage.setItem("login-remember", JSON.stringify({ email: data.email, password: data.password }));
+    } else {
+      localStorage.removeItem("login-remember");
+    }
+    const result = await signIn("credentials", {
+      email: data.email,
+      password: data.password,
+      redirect: false,
     });
+    if (result?.error) {
+      setError("Invalid email or password.");
+      return;
+    }
+    router.push("/dashboard/default");
+    router.refresh();
   };
 
   return (
@@ -52,6 +86,7 @@ export function LoginForm() {
                 placeholder="you@example.com"
                 autoComplete="email"
                 aria-invalid={fieldState.invalid}
+                disabled={isSubmitting}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -70,6 +105,7 @@ export function LoginForm() {
                 placeholder="••••••••"
                 autoComplete="current-password"
                 aria-invalid={fieldState.invalid}
+                disabled={isSubmitting}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -86,6 +122,7 @@ export function LoginForm() {
                 checked={field.value}
                 onCheckedChange={(checked) => field.onChange(Boolean(checked))}
                 aria-invalid={fieldState.invalid}
+                disabled={isSubmitting}
               />
               <FieldContent>
                 <FieldLabel htmlFor="login-remember" className="font-normal">
@@ -97,8 +134,9 @@ export function LoginForm() {
           )}
         />
       </FieldGroup>
-      <Button className="w-full" type="submit">
-        Login
+      {error && <p className="text-destructive text-sm">{error}</p>}
+      <Button className="w-full" type="submit" disabled={isSubmitting}>
+        {isSubmitting ? "Signing in…" : "Login"}
       </Button>
     </form>
   );
