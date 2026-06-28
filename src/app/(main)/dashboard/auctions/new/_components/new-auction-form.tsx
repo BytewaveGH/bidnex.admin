@@ -4,26 +4,30 @@ import * as React from "react";
 
 import { useRouter } from "next/navigation";
 
+import { useQuery } from "@tanstack/react-query";
 import { Check, GripVertical, Search, Star, Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { apiRequest } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
-import { type VendorLot, vendorLots } from "../../../vendor-lots/_components/vendor-lots-data";
+import type { VendorLot } from "../../../vendor-lots/_components/vendor-lots-data";
+import { VendorLotServices } from "../../../vendor-lots/_logics/services";
+import { AuctionServices } from "../../_logics/services";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface ConfiguredLot {
   lot: VendorLot;
-  durationMinutes: string;
   featured: boolean;
 }
 
@@ -32,23 +36,24 @@ interface AuctionForm {
   description: string;
   startDate: string;
   startTime: string;
+  lotIntervalMinutes: string;
   location: string;
   address: string;
 }
 
-const DURATION_OPTIONS = [
-  { value: "5", label: "5 minutes" },
-  { value: "10", label: "10 minutes" },
-  { value: "15", label: "15 minutes" },
-  { value: "20", label: "20 minutes" },
-  { value: "30", label: "30 minutes" },
-  { value: "45", label: "45 minutes" },
-  { value: "60", label: "1 hour" },
-];
+interface UnassignedLotsResponse {
+  data: {
+    count: number;
+    page: number;
+    limit: number;
+    data: VendorLot[];
+  };
+  status: boolean;
+}
+
+const LOTS_PER_PAGE = 10;
 
 const STEPS = ["Details", "Add Lots", "Review"];
-
-const approvedLots = vendorLots.filter((l) => l.reviewStatus === "approved");
 
 function stepCircleClass(i: number, current: number) {
   if (i < current) return "bg-emerald-600 text-white";
@@ -207,11 +212,25 @@ function DetailsStep({
 
             <Separator />
 
-            <div className="rounded-lg border bg-muted/40 p-4">
-              <p className="mb-1 text-muted-foreground text-xs">Duration is determined automatically</p>
-              <p className="text-muted-foreground text-xs">
-                Total auction time = sum of all lot durations added in the next step.
-              </p>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="lotIntervalMinutes">
+                Minutes per Lot <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="lotIntervalMinutes"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="e.g. 15"
+                value={form.lotIntervalMinutes}
+                onChange={(e) => onChange("lotIntervalMinutes", e.target.value)}
+                className={cn(errors.lotIntervalMinutes && "border-destructive")}
+              />
+              {errors.lotIntervalMinutes ? (
+                <p className="text-destructive text-xs">{errors.lotIntervalMinutes}</p>
+              ) : (
+                <p className="text-muted-foreground text-xs">Each lot gets this many minutes in the bidding window.</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -224,29 +243,102 @@ function DetailsStep({
 
 function LotsStep({
   configuredLots,
+  lotIntervalMinutes,
   errors,
   onAdd,
   onRemove,
-  onDurationChange,
   onFeaturedChange,
 }: {
   configuredLots: ConfiguredLot[];
+  lotIntervalMinutes: string;
   errors: { lots?: string };
   onAdd: (lot: VendorLot) => void;
   onRemove: (id: number) => void;
-  onDurationChange: (id: number, value: string) => void;
   onFeaturedChange: (id: number, value: boolean) => void;
 }) {
   const [search, setSearch] = React.useState("");
+  const [page, setPage] = React.useState(1);
+
+  const { data: session, status: sessionStatus } = useSession();
+  const token = session?.accessToken;
+
+  const svc = VendorLotServices.FetchUnassigned({ page, limit: LOTS_PER_PAGE });
+  const {
+    data: res,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["unassigned-lots", page],
+    queryFn: () => apiRequest<UnassignedLotsResponse>(svc.endpoint, token, { params: svc.params }),
+    enabled: sessionStatus === "authenticated",
+    staleTime: 30_000,
+  });
+
+  const apiLots = res?.data?.data ?? [];
+  const totalCount = res?.data?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / LOTS_PER_PAGE);
 
   const addedIds = new Set(configuredLots.map((cl) => cl.lot.id));
-  const available = approvedLots.filter(
+  const available = apiLots.filter(
     (l) =>
       !addedIds.has(l.id) &&
       (!search ||
         l.title.toLowerCase().includes(search.toLowerCase()) ||
         l.category.name.toLowerCase().includes(search.toLowerCase())),
   );
+
+  let lotsListContent: React.ReactElement;
+  if (isLoading) {
+    lotsListContent = (
+      <div className="divide-y border-t">
+        {Array.from({ length: 5 }).map((_, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: skeleton list
+          <div key={i} className="flex items-center gap-3 px-6 py-3">
+            <Skeleton className="size-10 shrink-0 rounded-md" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+            <Skeleton className="h-7 w-12 rounded-md" />
+          </div>
+        ))}
+      </div>
+    );
+  } else if (isError) {
+    lotsListContent = (
+      <div className="flex h-32 items-center justify-center text-destructive text-sm">
+        Failed to load lots. Please try again.
+      </div>
+    );
+  } else if (available.length === 0) {
+    lotsListContent = (
+      <div className="flex h-32 items-center justify-center text-muted-foreground text-sm">
+        {totalCount === 0 ? "No unassigned lots available." : "All lots on this page added or no matches."}
+      </div>
+    );
+  } else {
+    lotsListContent = (
+      <div className="divide-y border-t">
+        {available.map((lot) => (
+          <div key={lot.id} className="flex items-center gap-3 px-6 py-3">
+            {/* biome-ignore lint/performance/noImgElement: lot thumbnail */}
+            <img src={lot.primaryImage} alt="" className="size-10 shrink-0 rounded-md border object-cover" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-sm" title={lot.title}>
+                {lot.title}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {lot.category.name} · GHS {lot.startingBid.toFixed(2)}
+              </p>
+            </div>
+            <Button size="sm" variant="outline" className="h-7 shrink-0" onClick={() => onAdd(lot)}>
+              Add
+            </Button>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_400px]">
@@ -262,35 +354,41 @@ function LotsStep({
                 className="h-7 w-48 pl-8"
                 placeholder="Search lots..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
               />
             </div>
           </CardAction>
         </CardHeader>
         <CardContent className="px-0">
-          {available.length === 0 ? (
-            <div className="flex h-32 items-center justify-center text-muted-foreground text-sm">
-              {approvedLots.length === 0 ? "No approved lots available." : "All lots added or no matches."}
-            </div>
-          ) : (
-            <div className="divide-y border-t">
-              {available.map((lot) => (
-                <div key={lot.id} className="flex items-center gap-3 px-6 py-3">
-                  {/* biome-ignore lint/performance/noImgElement: lot thumbnail */}
-                  <img src={lot.primaryImage} alt="" className="size-10 shrink-0 rounded-md border object-cover" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-sm" title={lot.title}>
-                      {lot.title}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {lot.category.name} · GHS {lot.startingBid.toFixed(2)}
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline" className="h-7 shrink-0" onClick={() => onAdd(lot)}>
-                    Add
-                  </Button>
-                </div>
-              ))}
+          {lotsListContent}
+          {!isLoading && totalPages > 1 && (
+            <div className="flex items-center justify-between border-t px-6 py-3">
+              <span className="text-muted-foreground text-xs">
+                Page {page} of {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
@@ -301,7 +399,9 @@ function LotsStep({
         <Card className={cn(errors.lots && "border-destructive")}>
           <CardHeader>
             <CardTitle className="text-base leading-none">Auction Lots</CardTitle>
-            <CardDescription>Configure duration and featured status for each lot.</CardDescription>
+            <CardDescription>
+              Mark lots as featured. Duration is {lotIntervalMinutes || "—"} min/lot from Step 1.
+            </CardDescription>
             <CardAction>
               {configuredLots.length > 0 && (
                 <Badge variant="secondary">
@@ -344,22 +444,6 @@ function LotsStep({
 
                     {/* Config row */}
                     <div className="ml-7 flex items-center gap-4">
-                      <div className="flex flex-1 items-center gap-2">
-                        <Label className="shrink-0 text-muted-foreground text-xs">Duration</Label>
-                        <Select value={cl.durationMinutes} onValueChange={(v) => onDurationChange(cl.lot.id, v)}>
-                          <SelectTrigger className="h-7 w-full text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {DURATION_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
                       <div className="flex items-center gap-1.5">
                         <Star
                           className={cn(
@@ -389,7 +473,7 @@ function LotsStep({
             <p className="text-muted-foreground text-xs">
               Estimated total duration:{" "}
               <span className="font-medium text-foreground">
-                {configuredLots.reduce((acc, cl) => acc + parseInt(cl.durationMinutes, 10), 0)} minutes
+                {configuredLots.length * (parseInt(lotIntervalMinutes, 10) || 0)} minutes
               </span>
             </p>
           </div>
@@ -402,7 +486,8 @@ function LotsStep({
 // ─── Step 3: Review ──────────────────────────────────────────────────────────
 
 function ReviewStep({ form, configuredLots }: { form: AuctionForm; configuredLots: ConfiguredLot[] }) {
-  const totalMinutes = configuredLots.reduce((acc, cl) => acc + parseInt(cl.durationMinutes, 10), 0);
+  const intervalMinutes = parseInt(form.lotIntervalMinutes, 10) || 0;
+  const totalMinutes = configuredLots.length * intervalMinutes;
   const featuredCount = configuredLots.filter((cl) => cl.featured).length;
 
   function formatDateTime() {
@@ -492,7 +577,7 @@ function ReviewStep({ form, configuredLots }: { form: AuctionForm; configuredLot
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-sm">{cl.lot.title}</p>
                   <div className="mt-0.5 flex items-center gap-1.5">
-                    <span className="text-muted-foreground text-xs">{cl.durationMinutes} min</span>
+                    <span className="text-muted-foreground text-xs">{form.lotIntervalMinutes || "—"} min</span>
                     {cl.featured && (
                       <>
                         <span className="text-muted-foreground/40">·</span>
@@ -516,17 +601,23 @@ function ReviewStep({ form, configuredLots }: { form: AuctionForm; configuredLot
 
 export function NewAuctionForm() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const token = session?.accessToken;
+
   const [step, setStep] = React.useState(0);
   const [form, setForm] = React.useState<AuctionForm>({
     name: "",
     description: "",
     startDate: "",
     startTime: "",
+    lotIntervalMinutes: "15",
     location: "",
     address: "",
   });
   const [configuredLots, setConfiguredLots] = React.useState<ConfiguredLot[]>([]);
   const [errors, setErrors] = React.useState<Partial<AuctionForm> & { lots?: string }>({});
+  const [creating, setCreating] = React.useState(false);
+  const [createError, setCreateError] = React.useState<string | null>(null);
 
   function handleFormChange(field: keyof AuctionForm, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -538,6 +629,9 @@ export function NewAuctionForm() {
     if (!form.name.trim()) e.name = "Auction name is required.";
     if (!form.startDate) e.startDate = "Start date is required.";
     if (!form.startTime) e.startTime = "Start time is required.";
+    const interval = parseInt(form.lotIntervalMinutes, 10);
+    if (!form.lotIntervalMinutes || Number.isNaN(interval) || interval < 1)
+      e.lotIntervalMinutes = "Enter a valid interval (min 1).";
     if (!form.location.trim()) e.location = "Venue name is required.";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -560,7 +654,7 @@ export function NewAuctionForm() {
   }
 
   function handleAddLot(lot: VendorLot) {
-    setConfiguredLots((prev) => [...prev, { lot, durationMinutes: "15", featured: false }]);
+    setConfiguredLots((prev) => [...prev, { lot, featured: false }]);
     if (errors.lots) setErrors((prev) => ({ ...prev, lots: undefined }));
   }
 
@@ -568,16 +662,53 @@ export function NewAuctionForm() {
     setConfiguredLots((prev) => prev.filter((cl) => cl.lot.id !== id));
   }
 
-  function handleDurationChange(id: number, value: string) {
-    setConfiguredLots((prev) => prev.map((cl) => (cl.lot.id === id ? { ...cl, durationMinutes: value } : cl)));
-  }
-
   function handleFeaturedChange(id: number, value: boolean) {
     setConfiguredLots((prev) => prev.map((cl) => (cl.lot.id === id ? { ...cl, featured: value } : cl)));
   }
 
-  function handleCreate() {
-    router.push("/dashboard/auctions");
+  async function handleCreate() {
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const startTime = `${form.startDate}T${form.startTime}:00Z`;
+      const totalMinutes = configuredLots.length * parseInt(form.lotIntervalMinutes, 10);
+      const endTime = new Date(new Date(startTime).getTime() + totalMinutes * 60_000).toISOString();
+      const createSvc = AuctionServices.CreateAuction({
+        title: form.name.trim(),
+        ...(form.description.trim() ? { description: form.description.trim() } : {}),
+        startTime,
+        endTime,
+        locationName: form.location.trim(),
+        ...(form.address.trim() ? { locationAddress: form.address.trim() } : {}),
+      });
+      const res = await apiRequest<{ data: { id: number }; status: boolean }>(createSvc.endpoint, token, {
+        method: "POST",
+        body: createSvc.body,
+      });
+      const auctionId = res.data.id;
+
+      for (let i = 0; i < configuredLots.length; i++) {
+        const cl = configuredLots[i];
+        const assignSvc = AuctionServices.AssignLot(auctionId, cl.lot.id, {
+          isFeatured: cl.featured,
+          lotInterval: parseInt(form.lotIntervalMinutes, 10),
+          lotOrder: i + 1,
+        });
+        await apiRequest(assignSvc.endpoint, token, { method: "POST", body: assignSvc.body });
+      }
+
+      const scheduleSvc = AuctionServices.ScheduleAuction(auctionId, {
+        startTime,
+        lotIntervalMinutes: parseInt(form.lotIntervalMinutes, 10),
+      });
+      await apiRequest(scheduleSvc.endpoint, token, { method: "PUT", body: scheduleSvc.body });
+
+      router.push("/dashboard/auctions");
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create auction. Please try again.");
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
@@ -598,10 +729,10 @@ export function NewAuctionForm() {
       {step === 1 && (
         <LotsStep
           configuredLots={configuredLots}
+          lotIntervalMinutes={form.lotIntervalMinutes}
           errors={errors}
           onAdd={handleAddLot}
           onRemove={handleRemoveLot}
-          onDurationChange={handleDurationChange}
           onFeaturedChange={handleFeaturedChange}
         />
       )}
@@ -609,9 +740,11 @@ export function NewAuctionForm() {
 
       {/* Footer nav */}
       <Separator />
+      {createError && <p className="text-destructive text-sm">{createError}</p>}
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
+          disabled={creating}
           onClick={step === 0 ? () => router.push("/dashboard/auctions") : () => setStep((s) => s - 1)}
         >
           {step === 0 ? "Cancel" : "Back"}
@@ -620,9 +753,13 @@ export function NewAuctionForm() {
         {step < 2 ? (
           <Button onClick={handleNext}>Next Step</Button>
         ) : (
-          <Button className="bg-emerald-600 px-8 text-white hover:bg-emerald-700" onClick={handleCreate}>
+          <Button
+            className="bg-emerald-600 px-8 text-white hover:bg-emerald-700"
+            disabled={creating}
+            onClick={handleCreate}
+          >
             <Check className="size-4" />
-            Create Auction
+            {creating ? "Creating…" : "Create Auction"}
           </Button>
         )}
       </div>
