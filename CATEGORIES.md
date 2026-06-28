@@ -14,14 +14,14 @@ All requests go through `apiClient` with auth headers injected automatically (se
 
 ## API Endpoints
 
-**File:** [`src/app/[locale]/(stores)/admin/categories/_logics/services.ts`](src/app/[locale]/(stores)/admin/categories/_logics/services.ts)
+**File:** [`src/app/[locale]/(stores)/admin/categories/_logics/services.ts`](<src/app/[locale]/(stores)/admin/categories/_logics/services.ts>)
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/admin/categories` | Fetch full category tree |
-| `POST` | `/admin/categories` | Create a new category |
-| `PUT` | `/admin/categories/:id` | Update an existing category |
-| `DELETE` | `/admin/categories/:id` | Delete a category |
+| Method   | Endpoint                | Purpose                     |
+| -------- | ----------------------- | --------------------------- |
+| `GET`    | `/admin/categories`     | Fetch full category tree    |
+| `POST`   | `/admin/categories`     | Create a new category       |
+| `PUT`    | `/admin/categories/:id` | Update an existing category |
+| `DELETE` | `/admin/categories/:id` | Delete a category           |
 
 ---
 
@@ -30,10 +30,7 @@ All requests go through `apiClient` with auth headers injected automatically (se
 **Hook:** `useFetchData` (non-paginated, from [`src/hooks/use-fetch.ts`](src/hooks/use-fetch.ts))
 
 ```ts
-const { data: categoriesRaw, isLoading, refetch } = useFetchData(
-  'admin-categories',
-  CategoryServices.FetchAll()
-)
+const { data: categoriesRaw, isLoading, refetch } = useFetchData('admin-categories', CategoryServices.FetchAll())
 ```
 
 - Cache key `'admin-categories'` is static — no filters, no pagination.
@@ -53,7 +50,7 @@ interface ICategory {
   description?: string
   iconUrl?: string
   parentId?: number | null
-  children?: ICategory[]   // subcategories nested here
+  children?: ICategory[] // subcategories nested here
   createdAt: string
 }
 ```
@@ -66,10 +63,7 @@ The tree is flattened into a flat list for the AG Grid using `flattenCategories(
 type FlatCategory = ICategory & { depth: number; parentName: string | null }
 
 const flattenCategories = (cats, depth = 0, parentName = null) =>
-  cats.flatMap((cat) => [
-    { ...cat, depth, parentName },
-    ...flattenCategories(cat.children ?? [], depth + 1, cat.name),
-  ])
+  cats.flatMap((cat) => [{ ...cat, depth, parentName }, ...flattenCategories(cat.children ?? [], depth + 1, cat.name)])
 ```
 
 - `depth === 0` → top-level category (bold, blue icon)
@@ -152,14 +146,14 @@ parentOptions={topLevelOptions.filter((o) => o.id !== selectedCategory.id)}
 
 ## Form Fields Reference
 
-**File:** [`src/app/[locale]/(stores)/admin/categories/_widgets/_forms/category-form.tsx`](src/app/[locale]/(stores)/admin/categories/_widgets/_forms/category-form.tsx)
+**File:** [`src/app/[locale]/(stores)/admin/categories/_widgets/_forms/category-form.tsx`](<src/app/[locale]/(stores)/admin/categories/_widgets/_forms/category-form.tsx>)
 
-| Field | Required | Validation | Notes |
-|---|---|---|---|
-| `name` | Yes | Non-empty | Must be unique (enforced by backend) |
-| `description` | No | None | Omitted from payload if empty |
-| `iconUrl` | No | Must start with `http://` or `https://` | Live preview shown below input when valid |
-| `parentId` | No | None | Dropdown of top-level categories; empty = top-level |
+| Field         | Required | Validation                              | Notes                                               |
+| ------------- | -------- | --------------------------------------- | --------------------------------------------------- |
+| `name`        | Yes      | Non-empty                               | Must be unique (enforced by backend)                |
+| `description` | No       | None                                    | Omitted from payload if empty                       |
+| `iconUrl`     | No       | Must start with `http://` or `https://` | Live preview shown below input when valid           |
+| `parentId`    | No       | None                                    | Dropdown of top-level categories; empty = top-level |
 
 ---
 
@@ -182,11 +176,11 @@ CategoryForm onSuccess  → closeSheet() + refetch()
 
 ## Key Files Reference
 
-| File | Role |
-|---|---|
-| [`src/app/[locale]/(stores)/admin/categories/_logics/services.ts`](src/app/[locale]/(stores)/admin/categories/_logics/services.ts) | All endpoint definitions |
-| [`src/app/[locale]/(stores)/admin/categories/_widgets/main.tsx`](src/app/[locale]/(stores)/admin/categories/_widgets/main.tsx) | Page component — fetch, grid, sheet, delete logic |
-| [`src/app/[locale]/(stores)/admin/categories/_widgets/_forms/category-form.tsx`](src/app/[locale]/(stores)/admin/categories/_widgets/_forms/category-form.tsx) | Create/update form with validation |
-| [`src/hooks/use-fetch.ts`](src/hooks/use-fetch.ts) | Non-paginated fetch hook used to load categories |
-| [`src/hooks/use-axios.ts`](src/hooks/use-axios.ts) | Imperative request hook used for create, update, delete |
-| [`src/types/interfaces/gems-bid.ts`](src/types/interfaces/gems-bid.ts) | `ICategory`, `ICategoryPayload` type definitions |
+| File                                                                                                                                                             | Role                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| [`src/app/[locale]/(stores)/admin/categories/_logics/services.ts`](<src/app/[locale]/(stores)/admin/categories/_logics/services.ts>)                             | All endpoint definitions                                |
+| [`src/app/[locale]/(stores)/admin/categories/_widgets/main.tsx`](<src/app/[locale]/(stores)/admin/categories/_widgets/main.tsx>)                                 | Page component — fetch, grid, sheet, delete logic       |
+| [`src/app/[locale]/(stores)/admin/categories/_widgets/_forms/category-form.tsx`](<src/app/[locale]/(stores)/admin/categories/_widgets/_forms/category-form.tsx>) | Create/update form with validation                      |
+| [`src/hooks/use-fetch.ts`](src/hooks/use-fetch.ts)                                                                                                               | Non-paginated fetch hook used to load categories        |
+| [`src/hooks/use-axios.ts`](src/hooks/use-axios.ts)                                                                                                               | Imperative request hook used for create, update, delete |
+| [`src/types/interfaces/gems-bid.ts`](src/types/interfaces/gems-bid.ts)                                                                                           | `ICategory`, `ICategoryPayload` type definitions        |

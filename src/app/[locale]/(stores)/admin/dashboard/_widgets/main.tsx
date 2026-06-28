@@ -33,8 +33,7 @@ import { AuctionServices } from '../../auctions/_logics/services'
 import { DisputeServices } from '../../disputes/_logics/services'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const fmtGHS = (v: number) =>
-  `GHS ${Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const fmtGHS = (v: number) => `GHS ${Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmtK = (v: number) => (v >= 1000 ? `GHS ${(v / 1000).toFixed(1)}K` : `GHS ${v}`)
 const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
 const hourLabel = (h: number) => {
@@ -59,9 +58,7 @@ const Card = ({ children, className = '' }: { children: React.ReactNode; classNa
   <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>{children}</div>
 )
 
-const ChartSkeleton = ({ height = 220 }: { height?: number }) => (
-  <div className="animate-pulse bg-gray-50 rounded-xl" style={{ height }} />
-)
+const ChartSkeleton = ({ height = 220 }: { height?: number }) => <div className="animate-pulse bg-gray-50 rounded-xl" style={{ height }} />
 
 interface SectionHeaderProps {
   icon: React.ReactNode
@@ -133,9 +130,7 @@ const BudgetRow = ({ label, actual, target }: BudgetRowProps) => {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <p className="text-xs text-gray-400">
-        {hit ? '✓ Target exceeded!' : `${fmtGHS(target - actual)} remaining · ${pct}%`}
-      </p>
+      <p className="text-xs text-gray-400">{hit ? '✓ Target exceeded!' : `${fmtGHS(target - actual)} remaining · ${pct}%`}</p>
     </div>
   )
 }
@@ -213,30 +208,20 @@ const Main = () => {
   )
 
   // ── Type casts ────────────────────────────────────────────────────────────
-  const analytics =
-    analyticsRaw && !Array.isArray(analyticsRaw) ? (analyticsRaw as IAnalytics.UnifiedResponse) : undefined
+  const analytics = analyticsRaw && !Array.isArray(analyticsRaw) ? (analyticsRaw as IAnalytics.UnifiedResponse) : undefined
 
   const kpis = analytics?.kpis
   const dailyData: IAnalytics.DailyPoint[] = Array.isArray(analytics?.dailyRevenue) ? analytics!.dailyRevenue : []
-  const monthlyData: IAnalytics.MonthlyPoint[] = Array.isArray(analytics?.monthlyRevenue)
-    ? analytics!.monthlyRevenue
-    : []
-  const hourlyData: IAnalytics.HourlyPoint[] = Array.isArray(analytics?.hourlyActivity)
-    ? analytics!.hourlyActivity
-    : []
+  const monthlyData: IAnalytics.MonthlyPoint[] = Array.isArray(analytics?.monthlyRevenue) ? analytics!.monthlyRevenue : []
+  const hourlyData: IAnalytics.HourlyPoint[] = Array.isArray(analytics?.hourlyActivity) ? analytics!.hourlyActivity : []
   const heatmapPoints: IAnalytics.HeatmapPoint[] = Array.isArray(analytics?.heatmap) ? analytics!.heatmap : []
-  const auctionPerfData: IAnalytics.AuctionPerf[] = Array.isArray(analytics?.auctionPerformance)
-    ? analytics!.auctionPerformance
-    : []
+  const auctionPerfData: IAnalytics.AuctionPerf[] = Array.isArray(analytics?.auctionPerformance) ? analytics!.auctionPerformance : []
   const topLots: IAnalytics.TopLot[] = Array.isArray(analytics?.topLots) ? analytics!.topLots : []
   const serverInsights = analytics?.insights
   const actionsNeeded = analytics?.actionsNeeded
 
-  const paymentsResponse =
-    paymentsRaw && !Array.isArray(paymentsRaw) ? (paymentsRaw as IAnalytics.PaymentsResponse) : undefined
-  const paymentsData: IAnalytics.PaymentMethod[] = Array.isArray(paymentsResponse?.methods)
-    ? paymentsResponse!.methods
-    : []
+  const paymentsResponse = paymentsRaw && !Array.isArray(paymentsRaw) ? (paymentsRaw as IAnalytics.PaymentsResponse) : undefined
+  const paymentsData: IAnalytics.PaymentMethod[] = Array.isArray(paymentsResponse?.methods) ? paymentsResponse!.methods : []
 
   const pendingAuctions: IAuction[] = [
     ...(Array.isArray(pendingReviewRaw) ? (pendingReviewRaw as IAuction[]) : []),
@@ -286,10 +271,7 @@ const Main = () => {
   }, [monthlyData, dateTo])
 
   // Auction performance with computed pct
-  const totalPerfRevenue = useMemo(
-    () => auctionPerfData.reduce((sum, a) => sum + a.revenue, 0) || 1,
-    [auctionPerfData]
-  )
+  const totalPerfRevenue = useMemo(() => auctionPerfData.reduce((sum, a) => sum + a.revenue, 0) || 1, [auctionPerfData])
 
   // Full 24-hour heatmap columns
   const HM_24 = Array.from({ length: 24 }, (_, h) => h)
@@ -513,7 +495,6 @@ const Main = () => {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <main className="w-full flex flex-col gap-5 min-w-0">
-
       {/* ── Analytics header ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
         <div className="flex items-center justify-between gap-4 mb-3">
@@ -667,11 +648,7 @@ const Main = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <BudgetRow
-                label="Daily target"
-                actual={kpis?.totalRevenue ? Math.round(kpis.totalRevenue / 30) : 0}
-                target={budgets.daily}
-              />
+              <BudgetRow label="Daily target" actual={kpis?.totalRevenue ? Math.round(kpis.totalRevenue / 30) : 0} target={budgets.daily} />
               <BudgetRow label="Monthly target" actual={kpis?.totalRevenue ?? 0} target={budgets.monthly} />
             </div>
           )}
@@ -744,10 +721,7 @@ const Main = () => {
                       </div>
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${p.pct}%`, background: color }}
-                      />
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${p.pct}%`, background: color }} />
                     </div>
                   </div>
                 )
@@ -801,11 +775,7 @@ const Main = () => {
                   ))}
                 </div>
                 {HM_DAYS.map((day, di) => (
-                  <div
-                    key={day}
-                    className="grid mb-1"
-                    style={{ gridTemplateColumns: `44px repeat(24, 1fr)`, gap: '2px' }}
-                  >
+                  <div key={day} className="grid mb-1" style={{ gridTemplateColumns: `44px repeat(24, 1fr)`, gap: '2px' }}>
                     <div className="text-[11px] text-gray-400 font-medium flex items-center">{day}</div>
                     {(heatmapMatrix[di] ?? Array(24).fill(0)).map((v, hi) => (
                       <div
@@ -877,9 +847,7 @@ const Main = () => {
                         <td className="px-4 py-3 text-right text-gray-600">{lot.bidCount}</td>
                         <td className="px-4 py-3 text-right font-bold text-stone-800">{fmtGHS(lot.currentBid)}</td>
                         <td className="px-5 py-3 text-right">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${mc}`}>
-                            {lot.margin}%
-                          </span>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${mc}`}>{lot.margin}%</span>
                         </td>
                       </tr>
                     )
@@ -936,10 +904,7 @@ const Main = () => {
                       <span className="text-sm font-bold text-endeavour flex-shrink-0">{fmtGHS(a.revenue)}</span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-endeavour transition-all duration-500"
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className="h-full rounded-full bg-endeavour transition-all duration-500" style={{ width: `${pct}%` }} />
                     </div>
                     <div className="flex justify-between mt-1">
                       <span className="text-xs text-gray-400">{pct}% of period</span>
@@ -1073,15 +1038,11 @@ const Main = () => {
                 </div>
                 <div className="flex items-center justify-between py-2.5 px-3 bg-emerald-50/60 rounded-xl">
                   <span className="text-sm text-stone-700 font-semibold">New this period</span>
-                  <span className="text-sm font-extrabold text-emerald-600">
-                    +{serverInsights?.newUsersInPeriod ?? 0}
-                  </span>
+                  <span className="text-sm font-extrabold text-emerald-600">+{serverInsights?.newUsersInPeriod ?? 0}</span>
                 </div>
                 <div className="flex items-center justify-between py-2.5 px-3 bg-gray-50 rounded-xl">
                   <span className="text-sm text-stone-700 font-semibold">Avg bids / lot</span>
-                  <span className="text-sm font-extrabold text-stone-800">
-                    {serverInsights?.avgBidsPerLot?.toFixed(1) ?? '—'}
-                  </span>
+                  <span className="text-sm font-extrabold text-stone-800">{serverInsights?.avgBidsPerLot?.toFixed(1) ?? '—'}</span>
                 </div>
                 <div className="flex items-center justify-between py-2.5 px-3 bg-gray-50 rounded-xl">
                   <span className="text-sm text-stone-700 font-semibold">Peak hour</span>
@@ -1103,9 +1064,7 @@ const Main = () => {
           />
           <div className="px-5 pb-5 flex flex-col gap-2.5">
             {analyticsLoading ? (
-              [1, 2, 3].map((i) => (
-                <div key={i} className="h-12 animate-pulse bg-gradient-to-r from-gray-100 to-gray-50 rounded-xl" />
-              ))
+              [1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse bg-gradient-to-r from-gray-100 to-gray-50 rounded-xl" />)
             ) : insights.length > 0 ? (
               insights.map((ins, i) => <InsightItem key={i} {...ins} />)
             ) : (
@@ -1116,7 +1075,6 @@ const Main = () => {
           </div>
         </Card>
       </div>
-
     </main>
   )
 }

@@ -62,18 +62,18 @@ const RETRYABLE: PayoutStatus[] = ['failed', 'pending_review']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmtMoney = (n: number) =>
-  `GH₵${n.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const fmtMoney = (n: number) => `GH₵${n.toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-const fmtDate = (s: string) =>
-  new Date(s).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+const fmtDate = (s: string) => new Date(s).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 const StatusBadge = ({ status }: { status: PayoutStatus }) => {
   const meta = STATUS_META[status]
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${meta?.badge ?? 'bg-gray-100 text-gray-500'}`}>
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${meta?.badge ?? 'bg-gray-100 text-gray-500'}`}
+    >
       {meta?.label ?? status}
     </span>
   )
@@ -124,9 +124,7 @@ const Pagination = ({
   const to = Math.min((page + 1) * pageSize, total)
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50 rounded-b-xl gap-2">
-      <span className="text-xs text-gray-500">
-        {total > 0 ? `Showing ${from}–${to} of ${total} ${label}` : `No ${label} found`}
-      </span>
+      <span className="text-xs text-gray-500">{total > 0 ? `Showing ${from}–${to} of ${total} ${label}` : `No ${label} found`}</span>
       <div className="flex items-center gap-2 self-end sm:self-auto">
         <select
           value={pageSize}
@@ -191,10 +189,7 @@ const Main = () => {
 
   // ── Data fetches ─────────────────────────────────────────────────────────
 
-  const { data: statsRaw } = useFetchData(
-    'admin-finance-stats',
-    FinanceServices.FetchStats() as unknown as IGeneric
-  )
+  const { data: statsRaw } = useFetchData('admin-finance-stats', FinanceServices.FetchStats() as unknown as IGeneric)
   const stats = statsRaw as IFinanceStats | null
 
   const {
@@ -211,9 +206,7 @@ const Main = () => {
 
   const { data: detailRaw, isLoading: detailLoading } = useFetchData(
     selectedPayoutId ? `admin-finance-payout-${selectedPayoutId}` : 'admin-finance-payout-none',
-    (selectedPayoutId
-      ? FinanceServices.FetchPayoutById(selectedPayoutId)
-      : FinanceServices.FetchStats()) as unknown as IGeneric,
+    (selectedPayoutId ? FinanceServices.FetchPayoutById(selectedPayoutId) : FinanceServices.FetchStats()) as unknown as IGeneric,
     !!selectedPayoutId
   )
   const detail = detailRaw as IPayout | null
@@ -224,9 +217,7 @@ const Main = () => {
     isLoading: vendorLoading,
   } = useFetchPaginated(
     vendorId ? `admin-vendor-payouts-${vendorId}` : 'admin-vendor-payouts-none',
-    (vendorId
-      ? FinanceServices.FetchVendorPayouts(vendorId)
-      : FinanceServices.FetchStats()) as unknown as IGeneric,
+    (vendorId ? FinanceServices.FetchVendorPayouts(vendorId) : FinanceServices.FetchStats()) as unknown as IGeneric,
     vendorPage,
     vendorPageSize,
     !!vendorId && vendorSheetOpen
@@ -625,7 +616,9 @@ const Main = () => {
                 {!isRetryable && (
                   <div className="flex items-center gap-2 justify-center py-2 text-gray-400">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    <p className="text-sm font-medium text-gray-500">This payout has been {STATUS_META[detail.status]?.label.toLowerCase()}</p>
+                    <p className="text-sm font-medium text-gray-500">
+                      This payout has been {STATUS_META[detail.status]?.label.toLowerCase()}
+                    </p>
                   </div>
                 )}
               </div>

@@ -28,7 +28,8 @@ User fills form → signIn('credentials') → NextAuth authorize()
 **Route:** `/{locale}` (e.g. `/en`)
 
 **Files:**
-- [`src/app/[locale]/(auth)/page.tsx`](src/app/[locale]/(auth)/page.tsx) — page entry point
+
+- [`src/app/[locale]/(auth)/page.tsx`](<src/app/[locale]/(auth)/page.tsx>) — page entry point
 - [`src/components/generals/authentication/sign-in.tsx`](src/components/generals/authentication/sign-in.tsx) — layout (image + form)
 - [`src/components/generals/authentication/widgets/forms/sign-in.tsx`](src/components/generals/authentication/widgets/forms/sign-in.tsx) — form logic
 
@@ -116,6 +117,7 @@ On success it updates all token fields. On failure it sets `error: 'RefreshAcces
 **File:** [`src/lib/axios-client.ts`](src/lib/axios-client.ts)
 
 When any API call returns **401**, the interceptor:
+
 1. Calls `getSession()` to trigger the JWT callback (which refreshes the token server-side).
 2. If the new session has a valid access token, retries the original request.
 3. If refresh failed (`error === 'RefreshAccessTokenError'`), calls `signOut({ callbackUrl: '/en' })` and rejects all queued requests.
@@ -124,7 +126,7 @@ Queued requests during an in-flight refresh are held in `refreshQueue` and repla
 
 ### C. Proactive client timer
 
-**File:** [`src/app/[locale]/(auth)/_logics/refresh-token-handler.tsx`](src/app/[locale]/(auth)/_logics/refresh-token-handler.tsx)
+**File:** [`src/app/[locale]/(auth)/_logics/refresh-token-handler.tsx`](<src/app/[locale]/(auth)/_logics/refresh-token-handler.tsx>)
 
 `RefreshTokenHandler` is a render-less component that watches the session and computes the next refresh interval (access token expiry minus 1 minute). It drives NextAuth's `refetchInterval` so the session is proactively re-fetched before the token expires. If it detects `RefreshAccessTokenError` it immediately signs the user out.
 
@@ -165,6 +167,7 @@ The in-memory session store ([`src/lib/session-store.ts`](src/lib/session-store.
 ## 7. Sign-out
 
 Triggered by:
+
 - Calling `signOut({ callbackUrl: '/en' })` (manual or on refresh failure).
 - NextAuth redirects to `/en` (the login page) as configured in `pages.signOut`.
 
@@ -172,25 +175,25 @@ Triggered by:
 
 ## Environment Variables
 
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | Base URL for all backend API calls |
-| `TENANT_DOMAIN` | Override the tenant resolved from the host header |
-| `BETTER_AUTH_SECRET` | Secret used to sign/encrypt NextAuth JWTs and cookies |
+| Variable              | Purpose                                               |
+| --------------------- | ----------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | Base URL for all backend API calls                    |
+| `TENANT_DOMAIN`       | Override the tenant resolved from the host header     |
+| `BETTER_AUTH_SECRET`  | Secret used to sign/encrypt NextAuth JWTs and cookies |
 
 ---
 
 ## Key Files Reference
 
-| File | Role |
-|---|---|
-| [`src/auth.config.ts`](src/auth.config.ts) | Credentials provider, JWT/session callbacks, refresh logic |
-| [`src/auth.ts`](src/auth.ts) | NextAuth initialisation — exports `handlers`, `auth`, `signIn`, `signOut` |
-| [`src/middleware.ts`](src/middleware.ts) | Route guard — redirects unauthenticated users to `/en` |
-| [`src/app/api/auth/[...nextauth]/route.ts`](src/app/api/auth/[...nextauth]/route.ts) | NextAuth API route handler |
-| [`src/components/generals/authentication/widgets/forms/sign-in.tsx`](src/components/generals/authentication/widgets/forms/sign-in.tsx) | Login form UI and submit logic |
-| [`src/lib/axios-client.ts`](src/lib/axios-client.ts) | Axios instance with auth interceptors |
-| [`src/lib/session-store.ts`](src/lib/session-store.ts) | In-memory session cache for synchronous token access |
-| [`src/app/[locale]/(auth)/_logics/refresh-token-handler.tsx`](src/app/[locale]/(auth)/_logics/refresh-token-handler.tsx) | Proactive client-side token refresh timer |
-| [`src/types/next-auth.d.ts`](src/types/next-auth.d.ts) | Extended NextAuth type declarations |
-| [`src/types/interfaces/index.ts`](src/types/interfaces/index.ts) | `IAuth.Response` — backend auth response shape |
+| File                                                                                                                                   | Role                                                                      |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [`src/auth.config.ts`](src/auth.config.ts)                                                                                             | Credentials provider, JWT/session callbacks, refresh logic                |
+| [`src/auth.ts`](src/auth.ts)                                                                                                           | NextAuth initialisation — exports `handlers`, `auth`, `signIn`, `signOut` |
+| [`src/middleware.ts`](src/middleware.ts)                                                                                               | Route guard — redirects unauthenticated users to `/en`                    |
+| [`src/app/api/auth/[...nextauth]/route.ts`](src/app/api/auth/[...nextauth]/route.ts)                                                   | NextAuth API route handler                                                |
+| [`src/components/generals/authentication/widgets/forms/sign-in.tsx`](src/components/generals/authentication/widgets/forms/sign-in.tsx) | Login form UI and submit logic                                            |
+| [`src/lib/axios-client.ts`](src/lib/axios-client.ts)                                                                                   | Axios instance with auth interceptors                                     |
+| [`src/lib/session-store.ts`](src/lib/session-store.ts)                                                                                 | In-memory session cache for synchronous token access                      |
+| [`src/app/[locale]/(auth)/_logics/refresh-token-handler.tsx`](<src/app/[locale]/(auth)/_logics/refresh-token-handler.tsx>)             | Proactive client-side token refresh timer                                 |
+| [`src/types/next-auth.d.ts`](src/types/next-auth.d.ts)                                                                                 | Extended NextAuth type declarations                                       |
+| [`src/types/interfaces/index.ts`](src/types/interfaces/index.ts)                                                                       | `IAuth.Response` — backend auth response shape                            |

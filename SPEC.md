@@ -25,22 +25,22 @@
 
 ## 1. Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 14 (App Router) |
-| Language | TypeScript 5 (strict) |
-| Auth | next-auth v5 beta (JWT strategy) |
-| HTTP Client | Axios with request/response interceptors |
-| Server State | TanStack React Query v5 |
-| Client State | Zustand v5 |
-| Forms | React Hook Form + Zod |
-| Data Grid | AG Grid (ag-grid-react) |
-| Charts | AG Charts (ag-charts-react) |
-| i18n | next-intl (en, fr) |
-| Styling | Tailwind CSS + CVA + Radix UI primitives |
-| Notifications | Sonner |
-| Icons | Lucide React |
-| Encryption | crypto-js |
+| Layer         | Technology                               |
+| ------------- | ---------------------------------------- |
+| Framework     | Next.js 14 (App Router)                  |
+| Language      | TypeScript 5 (strict)                    |
+| Auth          | next-auth v5 beta (JWT strategy)         |
+| HTTP Client   | Axios with request/response interceptors |
+| Server State  | TanStack React Query v5                  |
+| Client State  | Zustand v5                               |
+| Forms         | React Hook Form + Zod                    |
+| Data Grid     | AG Grid (ag-grid-react)                  |
+| Charts        | AG Charts (ag-charts-react)              |
+| i18n          | next-intl (en, fr)                       |
+| Styling       | Tailwind CSS + CVA + Radix UI primitives |
+| Notifications | Sonner                                   |
+| Icons         | Lucide React                             |
+| Encryption    | crypto-js                                |
 
 ---
 
@@ -83,11 +83,11 @@ src/
 
 ## 3. Environment Variables
 
-| Variable | Visibility | Purpose |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | Public (browser) | Backend API base URL |
-| `BETTER_AUTH_SECRET` | Server only | JWT signing secret (NextAuth) |
-| `TENANT_DOMAIN` | Server only | Tenant identifier sent as `X-Tenant-Domain` header (defaults to `"admin"`) |
+| Variable              | Visibility       | Purpose                                                                    |
+| --------------------- | ---------------- | -------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | Public (browser) | Backend API base URL                                                       |
+| `BETTER_AUTH_SECRET`  | Server only      | JWT signing secret (NextAuth)                                              |
+| `TENANT_DOMAIN`       | Server only      | Tenant identifier sent as `X-Tenant-Domain` header (defaults to `"admin"`) |
 
 ---
 
@@ -153,6 +153,7 @@ Timeout:     (default axios)
 ### Request Interceptor
 
 Injects headers on every outgoing request:
+
 ```
 Authorization:   Bearer {accessToken}
 X-Tenant-Domain: {tenant}
@@ -163,6 +164,7 @@ Cache-Control:   no-cache
 ### Response Interceptor
 
 On `401` response:
+
 1. Pauses all concurrent requests (queues them).
 2. Calls `getSession()` — NextAuth JWT callback auto-refreshes the token.
 3. After refresh, drains the queue — retries each original request with the new token.
@@ -191,10 +193,12 @@ On `401` response:
 ### Zustand (client state — minimal)
 
 Single generic store (`useGeneralStore`) with:
+
 ```typescript
 zusState: T
 zusUpdateState: (key, value) => void
 ```
+
 Used sparingly for page-level UI state that doesn't belong in React Query.
 
 ### Local Storage
@@ -212,12 +216,12 @@ namespace IAuth {
   interface Response {
     accessToken: string
     refreshToken: string
-    accessTokenExpiry: number   // seconds or absolute timestamp — normalize to absolute ms
+    accessTokenExpiry: number // seconds or absolute timestamp — normalize to absolute ms
     refreshTokenExpiry: number
     user: {
       id: number
       username: string
-      accountType: string       // 'admin'
+      accountType: string // 'admin'
       avatar: string
       phone: string
       email: string
@@ -234,38 +238,73 @@ namespace IAuth {
 namespace IAnalytics {
   interface Kpis {
     totalRevenue: number
-    revenueChange: number        // % vs previous period
+    revenueChange: number // % vs previous period
     activeAuctions: number
     bidsToday: number
     openDisputes: number
     totalUsers: number
   }
-  interface DailyPoint   { date: string; revenue: number; bids: number }
-  interface MonthlyPoint { month: string; revenue: number; bids: number }
-  interface HourlyPoint  { hour: number; revenue: number; bids: number }  // hour 0-23
-  interface HeatmapPoint { day: number; hour: number; bids: number }       // day 0-6 (Sun-Sat)
-  interface PaymentMethod { method: string; amount: number; pct: number }
-  interface PaymentsResponse { total: number; methods: PaymentMethod[] }
+  interface DailyPoint {
+    date: string
+    revenue: number
+    bids: number
+  }
+  interface MonthlyPoint {
+    month: string
+    revenue: number
+    bids: number
+  }
+  interface HourlyPoint {
+    hour: number
+    revenue: number
+    bids: number
+  } // hour 0-23
+  interface HeatmapPoint {
+    day: number
+    hour: number
+    bids: number
+  } // day 0-6 (Sun-Sat)
+  interface PaymentMethod {
+    method: string
+    amount: number
+    pct: number
+  }
+  interface PaymentsResponse {
+    total: number
+    methods: PaymentMethod[]
+  }
 
   interface TopLot {
-    id: number; title: string; startingBid: number; currentBid: number
-    bidCount: number; margin: number; status: string
-    auctionId?: number; auctionTitle?: string
+    id: number
+    title: string
+    startingBid: number
+    currentBid: number
+    bidCount: number
+    margin: number
+    status: string
+    auctionId?: number
+    auctionTitle?: string
   }
   interface AuctionPerf {
-    id: number; title: string; revenue: number
-    lotsCount: number; soldCount: number; bidCount: number
+    id: number
+    title: string
+    revenue: number
+    lotsCount: number
+    soldCount: number
+    bidCount: number
   }
   interface ActionsNeeded {
-    pendingAuctions: number; pendingLots: number; openDisputes: number
+    pendingAuctions: number
+    pendingLots: number
+    openDisputes: number
   }
   interface Insights {
-    revenueVsPrevPeriod: number   // %
+    revenueVsPrevPeriod: number // %
     avgBidsPerLot: number
-    disputeRate: number           // %
+    disputeRate: number // %
     topAuction: string
     topAuctionRevenue: number
-    peakHour: number              // 0-23
+    peakHour: number // 0-23
     newUsersInPeriod: number
   }
   interface UnifiedResponse {
@@ -297,7 +336,7 @@ interface IAuction {
   isFeatured: boolean
   startTime?: string
   endTime?: string
-  lotInterval?: number       // minutes between lots
+  lotInterval?: number // minutes between lots
   lotCount?: number
   rejectReason?: string
   locationName?: string
@@ -324,8 +363,8 @@ interface IAuctionSchedulePayload {
 ### Lots
 
 ```typescript
-type LotReviewStatus   = 'draft' | 'submitted' | 'approved' | 'rejected'
-type LotBiddingStatus  = 'pending' | 'active' | 'sold' | 'unsold' | 'cancelled'
+type LotReviewStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
+type LotBiddingStatus = 'pending' | 'active' | 'sold' | 'unsold' | 'cancelled'
 
 interface ILot {
   id: number
@@ -459,10 +498,10 @@ interface IPayout {
   vendorName?: string
   grossAmount: number
   platformCharge: number
-  transferAmount: number     // grossAmount - platformCharge
+  transferAmount: number // grossAmount - platformCharge
   status: PayoutStatus
   failureReason?: string
-  moolreReference?: string   // external payment reference
+  moolreReference?: string // external payment reference
   createdAt: string
 }
 ```
@@ -472,6 +511,7 @@ interface IPayout {
 ## 9. API Endpoints
 
 All requests include:
+
 ```
 Authorization:   Bearer {accessToken}
 X-Tenant-Domain: admin
@@ -481,93 +521,93 @@ Cache-Control:   no-cache
 
 ### Auth
 
-| Method | Path | Body | Response |
-|---|---|---|---|
-| POST | `/auth/admin-login` | `{ email, password }` | `IAuth.Response` |
-| POST | `/auth/refresh` | `{}` + header `X-Refresh-Token` | `IAuth.Response` |
+| Method | Path                | Body                            | Response         |
+| ------ | ------------------- | ------------------------------- | ---------------- |
+| POST   | `/auth/admin-login` | `{ email, password }`           | `IAuth.Response` |
+| POST   | `/auth/refresh`     | `{}` + header `X-Refresh-Token` | `IAuth.Response` |
 
 ---
 
 ### Analytics
 
-| Method | Path | Query Params | Response |
-|---|---|---|---|
-| GET | `/admin/analytics` | `from`, `to` (YYYY-MM-DD) | `IAnalytics.UnifiedResponse` |
-| GET | `/admin/analytics/payments` | `from`, `to` | `IAnalytics.PaymentsResponse` |
+| Method | Path                        | Query Params              | Response                      |
+| ------ | --------------------------- | ------------------------- | ----------------------------- |
+| GET    | `/admin/analytics`          | `from`, `to` (YYYY-MM-DD) | `IAnalytics.UnifiedResponse`  |
+| GET    | `/admin/analytics/payments` | `from`, `to`              | `IAnalytics.PaymentsResponse` |
 
 ---
 
 ### Auctions
 
-| Method | Path | Params / Body | Response |
-|---|---|---|---|
-| GET | `/admin/auctions` | `status`, `limit`, `offset`, `dateFrom`, `dateTo` | `IAuction[]` |
-| GET | `/admin/auctions/:id` | — | `IAuction` |
-| POST | `/admin/auctions` | `IAuctionCreatePayload` | `IAuction` |
-| PUT | `/admin/auctions/:id` | `Partial<IAuctionCreatePayload>` | `IAuction` |
-| PUT | `/admin/auctions/:id/approve` | — | `IAuction` |
-| PUT | `/admin/auctions/:id/reject` | `{ reason: string }` | `IAuction` |
-| PUT | `/admin/auctions/:id/cancel` | — | `IAuction` |
-| PUT | `/admin/auctions/:id/schedule` | `IAuctionSchedulePayload` | `IAuction` |
-| GET | `/admin/auctions/:id/lots` | — | `ILot[]` |
-| POST | `/admin/auctions/:auctionId/lots/:lotId` | — | success |
-| DELETE | `/admin/auctions/:auctionId/lots/:lotId` | — | success |
+| Method | Path                                     | Params / Body                                     | Response     |
+| ------ | ---------------------------------------- | ------------------------------------------------- | ------------ |
+| GET    | `/admin/auctions`                        | `status`, `limit`, `offset`, `dateFrom`, `dateTo` | `IAuction[]` |
+| GET    | `/admin/auctions/:id`                    | —                                                 | `IAuction`   |
+| POST   | `/admin/auctions`                        | `IAuctionCreatePayload`                           | `IAuction`   |
+| PUT    | `/admin/auctions/:id`                    | `Partial<IAuctionCreatePayload>`                  | `IAuction`   |
+| PUT    | `/admin/auctions/:id/approve`            | —                                                 | `IAuction`   |
+| PUT    | `/admin/auctions/:id/reject`             | `{ reason: string }`                              | `IAuction`   |
+| PUT    | `/admin/auctions/:id/cancel`             | —                                                 | `IAuction`   |
+| PUT    | `/admin/auctions/:id/schedule`           | `IAuctionSchedulePayload`                         | `IAuction`   |
+| GET    | `/admin/auctions/:id/lots`               | —                                                 | `ILot[]`     |
+| POST   | `/admin/auctions/:auctionId/lots/:lotId` | —                                                 | success      |
+| DELETE | `/admin/auctions/:auctionId/lots/:lotId` | —                                                 | success      |
 
 ---
 
 ### Lots
 
-| Method | Path | Params / Body | Response |
-|---|---|---|---|
-| GET | `/admin/lots` | `vendorId`, `status`, `limit`, `offset` | `ILot[]` |
-| GET | `/admin/lots/:id` | — | `ILot` |
-| PUT | `/admin/lots/:id/approve` | — | `ILot` |
-| PUT | `/admin/lots/:id/reject` | `{ reason: string }` | `ILot` |
+| Method | Path                      | Params / Body                           | Response |
+| ------ | ------------------------- | --------------------------------------- | -------- |
+| GET    | `/admin/lots`             | `vendorId`, `status`, `limit`, `offset` | `ILot[]` |
+| GET    | `/admin/lots/:id`         | —                                       | `ILot`   |
+| PUT    | `/admin/lots/:id/approve` | —                                       | `ILot`   |
+| PUT    | `/admin/lots/:id/reject`  | `{ reason: string }`                    | `ILot`   |
 
 ---
 
 ### Categories
 
-| Method | Path | Body | Response |
-|---|---|---|---|
-| GET | `/admin/categories` | — | `ICategory[]` |
-| POST | `/admin/categories` | `ICategoryPayload` | `ICategory` |
-| PUT | `/admin/categories/:id` | `Partial<ICategoryPayload>` | `ICategory` |
-| DELETE | `/admin/categories/:id` | — | 200/204 |
+| Method | Path                    | Body                        | Response      |
+| ------ | ----------------------- | --------------------------- | ------------- |
+| GET    | `/admin/categories`     | —                           | `ICategory[]` |
+| POST   | `/admin/categories`     | `ICategoryPayload`          | `ICategory`   |
+| PUT    | `/admin/categories/:id` | `Partial<ICategoryPayload>` | `ICategory`   |
+| DELETE | `/admin/categories/:id` | —                           | 200/204       |
 
 ---
 
 ### Users
 
-| Method | Path | Params / Body | Response |
-|---|---|---|---|
-| GET | `/admin/users` | `accountType`, `isVerified`, `limit`, `offset` | `IAdminUser[]` |
-| GET | `/admin/users/:id` | — | `IAdminUser` |
-| PUT | `/admin/users/:id/suspend` | — | `IAdminUser` |
-| PUT | `/admin/users/:id/activate` | — | `IAdminUser` |
-| POST | `/admin/users/:id/wallet/credit` | `IWalletCreditPayload` | updated user |
-| GET | `/admin/vendors/:vendorId/payouts` | `limit`, `offset` | `IPayout[]` |
+| Method | Path                               | Params / Body                                  | Response       |
+| ------ | ---------------------------------- | ---------------------------------------------- | -------------- |
+| GET    | `/admin/users`                     | `accountType`, `isVerified`, `limit`, `offset` | `IAdminUser[]` |
+| GET    | `/admin/users/:id`                 | —                                              | `IAdminUser`   |
+| PUT    | `/admin/users/:id/suspend`         | —                                              | `IAdminUser`   |
+| PUT    | `/admin/users/:id/activate`        | —                                              | `IAdminUser`   |
+| POST   | `/admin/users/:id/wallet/credit`   | `IWalletCreditPayload`                         | updated user   |
+| GET    | `/admin/vendors/:vendorId/payouts` | `limit`, `offset`                              | `IPayout[]`    |
 
 ---
 
 ### Disputes
 
-| Method | Path | Params / Body | Response |
-|---|---|---|---|
-| GET | `/admin/disputes` | `status`, `limit`, `offset`, `dateFrom`, `dateTo` | `IDispute[]` |
-| GET | `/admin/disputes/:id` | — | `IDispute` (includes `messages[]`) |
-| PUT | `/admin/disputes/:id/resolve` | `IDisputeResolvePayload` | `IDispute` |
+| Method | Path                          | Params / Body                                     | Response                           |
+| ------ | ----------------------------- | ------------------------------------------------- | ---------------------------------- |
+| GET    | `/admin/disputes`             | `status`, `limit`, `offset`, `dateFrom`, `dateTo` | `IDispute[]`                       |
+| GET    | `/admin/disputes/:id`         | —                                                 | `IDispute` (includes `messages[]`) |
+| PUT    | `/admin/disputes/:id/resolve` | `IDisputeResolvePayload`                          | `IDispute`                         |
 
 ---
 
 ### Finance
 
-| Method | Path | Params | Response |
-|---|---|---|---|
-| GET | `/admin/finance/stats` | — | `IFinanceStats` |
-| GET | `/admin/finance/payouts` | `status`, `limit`, `offset` | `IPayout[]` |
-| GET | `/admin/finance/payouts/:id` | — | `IPayout` |
-| PUT | `/admin/finance/payouts/:id/retry` | — | `IPayout` |
+| Method | Path                               | Params                      | Response        |
+| ------ | ---------------------------------- | --------------------------- | --------------- |
+| GET    | `/admin/finance/stats`             | —                           | `IFinanceStats` |
+| GET    | `/admin/finance/payouts`           | `status`, `limit`, `offset` | `IPayout[]`     |
+| GET    | `/admin/finance/payouts/:id`       | —                           | `IPayout`       |
+| PUT    | `/admin/finance/payouts/:id/retry` | —                           | `IPayout`       |
 
 ---
 
@@ -636,6 +676,7 @@ Cache-Control:   no-cache
 ### `useFetchData(queryKey, fetcher, options?)`
 
 Wraps React Query `useQuery`.
+
 - Enabled only when user is authenticated.
 - Retry: 2 attempts, exponential backoff (max 30 s).
 - Returns: `{ data, isLoading, isError, error, refetch }`.
@@ -643,6 +684,7 @@ Wraps React Query `useQuery`.
 ### `useFetchPaginated(queryKey, fetcher, page, pageSize)`
 
 Like `useFetchData` but for paginated endpoints.
+
 - Query key includes `page` + `pageSize`.
 - Normalises both `T[]` and `{ data: T[], total: number }` response shapes.
 - Returns: `{ data, total, isLoading, isError, error, refetch }`.
@@ -655,6 +697,7 @@ Used for mutations (POST / PUT / DELETE) — not React Query managed.
 ### `useBrowserStorage(key, defaultValue, type?)`
 
 SSR-safe `localStorage` / `sessionStorage` accessor.
+
 - `type`: `'local'` (default) or `'session'`.
 
 ### `useDataEncrypt()`
@@ -674,9 +717,11 @@ Countdown timer to a target Unix timestamp. Used for session refresh indicators.
 ## 12. Routing & Middleware
 
 **Middleware** (`middleware.ts`) runs on:
+
 - `/` and `/(fr|en)/:path*`
 
 Logic order:
+
 1. Check auth via NextAuth `auth()`.
 2. If the path is a public auth page (`/(en|fr)/?$`) and user is authenticated → redirect to `/[locale]/admin/dashboard`.
 3. If the path requires auth and user is NOT authenticated → redirect to `/en` (login).
@@ -689,13 +734,13 @@ Logic order:
 
 ## 13. Error Handling
 
-| Layer | Mechanism |
-|---|---|
-| Forms | Zod schema + React Hook Form `errors` object → inline messages |
-| API (4xx/5xx) | Axios interceptor rejects; React Query surfaces `isError` + `error` |
-| 401 specifically | Axios interceptor auto-refreshes token before surfacing error |
-| Token expired | `RefreshTokenHandler` component calls `signOut()` |
-| User-facing errors | Sonner toast (`toast.error(message)`) |
+| Layer              | Mechanism                                                           |
+| ------------------ | ------------------------------------------------------------------- |
+| Forms              | Zod schema + React Hook Form `errors` object → inline messages      |
+| API (4xx/5xx)      | Axios interceptor rejects; React Query surfaces `isError` + `error` |
+| 401 specifically   | Axios interceptor auto-refreshes token before surfacing error       |
+| Token expired      | `RefreshTokenHandler` component calls `signOut()`                   |
+| User-facing errors | Sonner toast (`toast.error(message)`)                               |
 
 ---
 
