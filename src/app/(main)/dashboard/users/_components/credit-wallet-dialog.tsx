@@ -47,10 +47,11 @@ export function CreditWalletDialog({ user, open, onOpenChange, onConfirm }: Cred
       setError("Description is required.");
       return;
     }
+    if (!user) return;
     setError(null);
     setLoading(true);
     try {
-      await onConfirm(user?.id, num, description.trim());
+      await onConfirm(user.id, num, description.trim());
       reset();
       onOpenChange(false);
     } catch (err) {
