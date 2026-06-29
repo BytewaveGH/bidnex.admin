@@ -65,7 +65,6 @@ function groupPermissions(permissions: string[]) {
 
 function MemberRow({
   user,
-  assignedAt,
   onRemove,
   isRemoving,
 }: {
@@ -73,6 +72,7 @@ function MemberRow({
   onRemove: () => void;
   isRemoving: boolean;
 }) {
+  const { assignedAt } = user;
   return (
     <div className="flex items-center gap-3 py-2">
       <Avatar size="sm" className="shrink-0">
@@ -277,7 +277,6 @@ export function RoleDetailSheet({ open, onOpenChange, role }: RoleDetailSheetPro
                     <MemberRow
                       key={user.id}
                       user={user}
-                      assignedAt={user.assignedAt}
                       onRemove={() => removeMutation.mutate(user.id)}
                       isRemoving={removingUserId === user.id}
                     />
