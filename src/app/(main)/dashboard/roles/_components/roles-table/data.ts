@@ -1,133 +1,51 @@
-export type Role = {
-  role: string;
-  group: string;
-  accessLevel: string;
-  users: number;
-  permissionSets: string[];
-  lastReview: string;
-  owner: string;
-  status: "Active" | "Needs review";
+export interface IPermission {
+  id: number;
+  resource: string;
+  action: string;
+  key: string; // "resource.action"
+}
+
+export interface IRole {
+  id: number;
+  name: string;
+  label: string;
+  description?: string;
+  isSystem: boolean;
+  permissions: string[];
+  usersCount?: number;
+}
+
+export interface IRoleWithUsers extends IRole {
+  users: Array<{
+    id: number;
+    username: string;
+    email: string;
+    assignedAt: string;
+  }>;
+}
+
+// Alias kept so columns/table can import `Role`
+export type Role = IRole;
+
+export const RESOURCE_LABELS: Record<string, string> = {
+  analytics: "Analytics",
+  auctions: "Auctions",
+  lots: "Vendor Lots",
+  categories: "Categories",
+  users: "Users",
+  finance: "Finance",
+  disputes: "Disputes",
+  roles: "Roles & Permissions",
 };
 
-export const roles: Role[] = [
-  {
-    role: "Owner",
-    group: "Needs review",
-    accessLevel: "Full",
-    users: 2,
-    permissionSets: ["Users", "Settings", "Billing", "Reports", "Integrations", "Audit Logs"],
-    lastReview: "Apr 12, 2025",
-    owner: "System",
-    status: "Needs review",
-  },
-  {
-    role: "Admin",
-    group: "Needs review",
-    accessLevel: "Full",
-    users: 5,
-    permissionSets: ["Users", "Settings", "Reports", "Billing", "Integrations"],
-    lastReview: "Apr 15, 2025",
-    owner: "Jane Doe",
-    status: "Needs review",
-  },
-  {
-    role: "Manager",
-    group: "Needs review",
-    accessLevel: "Scoped",
-    users: 12,
-    permissionSets: ["Users", "Reports", "Projects", "Tasks"],
-    lastReview: "Apr 18, 2025",
-    owner: "Jane Doe",
-    status: "Needs review",
-  },
-  {
-    role: "Support",
-    group: "System roles",
-    accessLevel: "Scoped",
-    users: 8,
-    permissionSets: ["Users", "Tickets", "Reports", "Knowledge Base"],
-    lastReview: "May 1, 2025",
-    owner: "System",
-    status: "Active",
-  },
-  {
-    role: "Analyst",
-    group: "System roles",
-    accessLevel: "Scoped",
-    users: 6,
-    permissionSets: ["Reports", "Analytics", "Dashboards", "Exports"],
-    lastReview: "May 5, 2025",
-    owner: "System",
-    status: "Active",
-  },
-  {
-    role: "Guest",
-    group: "System roles",
-    accessLevel: "Read only",
-    users: 14,
-    permissionSets: ["Reports", "Dashboards"],
-    lastReview: "May 6, 2025",
-    owner: "System",
-    status: "Active",
-  },
-  {
-    role: "Service",
-    group: "System roles",
-    accessLevel: "API access",
-    users: 3,
-    permissionSets: ["Integrations", "API Keys", "Webhooks", "Logs"],
-    lastReview: "Apr 22, 2025",
-    owner: "System",
-    status: "Active",
-  },
-  {
-    role: "Billing",
-    group: "Custom roles",
-    accessLevel: "Scoped",
-    users: 3,
-    permissionSets: ["Billing", "Invoices", "Payments", "Reports"],
-    lastReview: "Apr 28, 2025",
-    owner: "Alex Kim",
-    status: "Active",
-  },
-  {
-    role: "Marketing",
-    group: "Custom roles",
-    accessLevel: "Scoped",
-    users: 9,
-    permissionSets: ["Users", "Reports", "Campaigns", "Analytics", "Exports"],
-    lastReview: "May 2, 2025",
-    owner: "Alex Kim",
-    status: "Active",
-  },
-  {
-    role: "Developer",
-    group: "Custom roles",
-    accessLevel: "Scoped",
-    users: 10,
-    permissionSets: ["Repos", "Deployments", "Settings", "API Keys", "Logs"],
-    lastReview: "May 3, 2025",
-    owner: "Chris Lee",
-    status: "Active",
-  },
-  {
-    role: "Project Lead",
-    group: "Custom roles",
-    accessLevel: "Scoped",
-    users: 7,
-    permissionSets: ["Projects", "Tasks", "Reports", "Users", "Settings"],
-    lastReview: "Apr 30, 2025",
-    owner: "Chris Lee",
-    status: "Active",
-  },
-  {
-    role: "Finance Viewer",
-    group: "Custom roles",
-    accessLevel: "Read only",
-    users: 4,
-    permissionSets: ["Billing", "Reports", "Invoices", "Dashboards"],
-    lastReview: "May 7, 2025",
-    owner: "Jane Doe",
-    status: "Active",
-  },
-];
+export const ACTION_LABELS: Record<string, string> = {
+  view: "View",
+  create: "Create",
+  edit: "Edit",
+  delete: "Delete",
+  approve: "Approve",
+  credit: "Credit Wallet",
+  retry_payout: "Retry Payout",
+  resolve: "Resolve",
+  assign: "Assign",
+};

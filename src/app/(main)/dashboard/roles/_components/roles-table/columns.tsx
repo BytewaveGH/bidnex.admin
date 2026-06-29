@@ -15,129 +15,124 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import type { Role } from "./data";
+import { ACTION_LABELS, RESOURCE_LABELS, type Role } from "./data";
 
-export const rolesColumns: ColumnDef<Role>[] = [
-  {
-    id: "group",
-    accessorKey: "group",
-    filterFn: "equalsString",
-    enableHiding: true,
-  },
-  {
-    id: "search",
-    accessorFn: (row) => [row.role, row.owner, ...row.permissionSets].join(" "),
-    filterFn: "includesString",
-    enableHiding: true,
-  },
-  {
-    id: "role",
-    accessorKey: "role",
-    header: "Role",
-    size: 180,
-    minSize: 180,
-    cell: ({ row }) => <span className="font-medium text-sm">{row.original.role}</span>,
-  },
-  {
-    id: "accessLevel",
-    accessorKey: "accessLevel",
-    header: "Access level",
-    size: 120,
-    cell: ({ row }) => (
-      <Badge className="rounded-sm" variant="outline">
-        {row.original.accessLevel}
-      </Badge>
-    ),
-  },
-  {
-    id: "users",
-    accessorKey: "users",
-    header: "Users",
-    size: 70,
-    cell: ({ row }) => <span className="text-sm">{row.original.users}</span>,
-  },
-  {
-    id: "permissionSets",
-    accessorFn: (row) => row.permissionSets.join(" "),
-    header: "Permission sets",
-    size: 310,
-    cell: ({ row }) => (
-      <div className="flex flex-wrap items-center justify-start gap-2">
-        {row.original.permissionSets.slice(0, 3).map((set) => (
-          <Badge className="rounded-sm" variant="outline" key={set}>
-            {set}
+interface RoleColumnCallbacks {
+  onView: (role: Role) => void;
+  onEdit: (role: Role) => void;
+  onDelete: (role: Role) => void;
+}
+
+function PermissionBadges({ permissions }: { permissions: string[] }) {
+  const visible = permissions.slice(0, 3);
+  const rest = permissions.length - 3;
+
+  return (
+    <div className="flex flex-wrap items-center justify-start gap-1.5">
+      {visible.map((key) => {
+        const [resource, action] = key.split(".");
+        const label = `${RESOURCE_LABELS[resource] ?? resource}: ${ACTION_LABELS[action] ?? action}`;
+        return (
+          <Badge key={key} className="rounded-sm text-xs" variant="outline">
+            {label}
           </Badge>
-        ))}
-        {row.original.permissionSets.length > 3 ? (
-          <span className="text-sm tabular-nums">+{row.original.permissionSets.length - 3}</span>
-        ) : null}
-      </div>
-    ),
-  },
-  {
-    id: "lastReview",
-    accessorKey: "lastReview",
-    header: "Last review",
-    size: 120,
-    cell: ({ row }) => <span className="text-sm">{row.original.lastReview}</span>,
-  },
-  {
-    id: "owner",
-    accessorKey: "owner",
-    header: "Owner",
-    size: 110,
-    filterFn: "equalsString",
-    cell: ({ row }) => <span className="text-sm">{row.original.owner}</span>,
-  },
-  {
-    id: "status",
-    accessorKey: "status",
-    header: "Status",
-    size: 130,
-    filterFn: "equalsString",
-    cell: ({ row }) => (
-      <Badge className="rounded-sm" variant="outline">
-        {row.original.status}
-      </Badge>
-    ),
-  },
-  {
-    id: "actions",
-    header: "",
-    size: 70,
-    cell: ({ row }) => {
-      const isSystemRole = row.original.group === "System roles";
-      const needsReview = row.original.status === "Needs review";
+        );
+      })}
+      {rest > 0 && <span className="text-muted-foreground text-sm tabular-nums">+{rest}</span>}
+    </div>
+  );
+}
 
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm">
-              <MoreVertical />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48" align="end">
-            <DropdownMenuGroup>
-              {needsReview ? <DropdownMenuItem>Review changes</DropdownMenuItem> : null}
-              <DropdownMenuItem>View details</DropdownMenuItem>
-              <DropdownMenuItem disabled={isSystemRole}>Edit role</DropdownMenuItem>
-              <DropdownMenuItem disabled={isSystemRole}>Duplicate role</DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>Review permissions</DropdownMenuItem>
-              <DropdownMenuItem>Manage members</DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem disabled={isSystemRole} variant="destructive">
-                Archive role
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
+export function makeRolesColumns({ onView, onEdit, onDelete }: RoleColumnCallbacks): ColumnDef<Role>[] {
+  return [
+    // Hidden accessor used for group-by in the table
+    {
+      id: "group",
+      accessorFn: (row) => (row.isSystem ? "System roles" : "Custom roles"),
+      filterFn: "equalsString",
+      enableHiding: true,
     },
-    enableColumnFilter: false,
-  },
-];
+    // Hidden accessor used for global search
+    {
+      id: "search",
+      accessorFn: (row) => [row.label, row.name, row.description ?? ""].join(" "),
+      filterFn: "includesString",
+      enableHiding: true,
+    },
+    {
+      id: "label",
+      accessorKey: "label",
+      header: "Role",
+      size: 200,
+      minSize: 160,
+      cell: ({ row }) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-medium text-sm">{row.original.label}</span>
+          <span className="font-mono text-muted-foreground text-xs">{row.original.name}</span>
+        </div>
+      ),
+    },
+    {
+      id: "type",
+      header: "Type",
+      size: 110,
+      accessorFn: (row) => (row.isSystem ? "System" : "Custom"),
+      cell: ({ row }) =>
+        row.original.isSystem ? (
+          <Badge className="rounded-sm" variant="secondary">
+            System
+          </Badge>
+        ) : (
+          <Badge className="rounded-sm" variant="outline">
+            Custom
+          </Badge>
+        ),
+    },
+    {
+      id: "permissions",
+      header: "Permissions",
+      size: 340,
+      accessorFn: (row) => row.permissions.join(" "),
+      cell: ({ row }) => <PermissionBadges permissions={row.original.permissions} />,
+    },
+    {
+      id: "usersCount",
+      accessorKey: "usersCount",
+      header: "Users",
+      size: 70,
+      cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.usersCount ?? "—"}</span>,
+    },
+    {
+      id: "actions",
+      header: "",
+      size: 56,
+      cell: ({ row }) => {
+        const role = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm">
+                <MoreVertical />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-44" align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem onSelect={() => onView(role)}>View details</DropdownMenuItem>
+                <DropdownMenuItem disabled={role.isSystem} onSelect={() => onEdit(role)}>
+                  Edit role
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem disabled={role.isSystem} variant="destructive" onSelect={() => onDelete(role)}>
+                  Delete role
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+      enableColumnFilter: false,
+    },
+  ];
+}

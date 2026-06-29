@@ -25,15 +25,13 @@ type RoleTableRow = ReturnType<TableType<Role>["getRowModel"]>["rows"][number];
 function groupRowsByRoleGroup(rows: RoleTableRow[]) {
   return rows.reduce(
     (groups, row) => {
-      const label = row.original.group;
+      const label = row.original.isSystem ? "System roles" : "Custom roles";
       const group = groups.find((item) => item.label === label);
-
       if (group) {
         group.rows.push(row);
       } else {
         groups.push({ label, rows: [row] });
       }
-
       return groups;
     },
     [] as Array<{ label: string; rows: RoleTableRow[] }>,
@@ -87,7 +85,7 @@ export function RolesTable({ table }: { table: TableType<Role> }) {
           ) : (
             <TableRow>
               <TableCell colSpan={colCount} className="h-24 text-center text-muted-foreground">
-                No results.
+                No roles found.
               </TableCell>
             </TableRow>
           )}
@@ -115,14 +113,7 @@ export function RolesTable({ table }: { table: TableType<Role> }) {
                 />
               </PaginationItem>
               <PaginationItem>
-                <PaginationLink
-                  size="sm"
-                  href="#"
-                  isActive
-                  onClick={(e) => {
-                    e.preventDefault();
-                  }}
-                >
+                <PaginationLink size="sm" href="#" isActive onClick={(e) => e.preventDefault()}>
                   {pageIndex + 1}
                 </PaginationLink>
               </PaginationItem>
@@ -144,12 +135,7 @@ export function RolesTable({ table }: { table: TableType<Role> }) {
 
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-sm">Rows per page</span>
-          <Select
-            value={`${pageSize}`}
-            onValueChange={(v) => {
-              table.setPageSize(Number(v));
-            }}
-          >
+          <Select value={`${pageSize}`} onValueChange={(v) => table.setPageSize(Number(v))}>
             <SelectTrigger size="sm" className="w-32">
               <SelectValue />
             </SelectTrigger>
