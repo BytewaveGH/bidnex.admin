@@ -118,7 +118,7 @@ export function RoleDetailSheet({ open, onOpenChange, role }: RoleDetailSheetPro
   const { data: detailRaw } = useQuery({
     queryKey: ["admin-role-detail", role?.id],
     queryFn: () => {
-      const svc = RoleServices.FetchById(role?.id);
+      const svc = RoleServices.FetchById(role!.id);
       return apiRequest(svc.endpoint, token);
     },
     enabled: !!token && !!role?.id && open,
@@ -142,14 +142,14 @@ export function RoleDetailSheet({ open, onOpenChange, role }: RoleDetailSheetPro
   // ── Assign mutation ───────────────────────────────────────────────────────
   const assignMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const svc = RoleServices.AssignRole(userId, role?.id);
+      const svc = RoleServices.AssignRole(userId, role!.id);
       return apiRequest(svc.endpoint, token, { method: svc.method, body: svc.body });
     },
     onSuccess: (_, userId) => {
       const user = allAdminUsers.find((u) => u.id === userId);
       toast.success(`${user?.username ?? "User"} assigned to ${role?.label}.`);
       setAssignOpen(false);
-      void queryClient.invalidateQueries({ queryKey: ["admin-role-detail", role?.id] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-role-detail", role!.id] });
       void queryClient.invalidateQueries({ queryKey: ["admin-roles"] });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to assign user."),
@@ -158,14 +158,14 @@ export function RoleDetailSheet({ open, onOpenChange, role }: RoleDetailSheetPro
   // ── Remove mutation ───────────────────────────────────────────────────────
   const removeMutation = useMutation({
     mutationFn: async (userId: number) => {
-      const svc = RoleServices.RemoveRole(userId, role?.id);
+      const svc = RoleServices.RemoveRole(userId, role!.id);
       return apiRequest(svc.endpoint, token, { method: svc.method });
     },
     onMutate: (userId) => setRemovingUserId(userId),
     onSuccess: (_, userId) => {
       const user = (detail?.users ?? []).find((u) => u.id === userId);
       toast.success(`${user?.username ?? "User"} removed from ${role?.label}.`);
-      void queryClient.invalidateQueries({ queryKey: ["admin-role-detail", role?.id] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-role-detail", role!.id] });
       void queryClient.invalidateQueries({ queryKey: ["admin-roles"] });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to remove user."),
