@@ -313,7 +313,7 @@ export function VendorLotsList() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <ListFilter data-icon="inline-start" />
-                    Status
+                    Review Status
                     <ChevronDownIcon data-icon="inline-end" />
                   </Button>
                 </DropdownMenuTrigger>

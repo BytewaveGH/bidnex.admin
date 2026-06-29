@@ -173,7 +173,7 @@ function TableBodyGroup({
         </TableCell>
       </TableRow>
       {group.rows.map((row) => (
-        <TableRow key={row.id} className="h-12 hover:bg-muted/20">
+        <TableRow key={row.id} className="h-12 bg-white hover:bg-muted/20">
           {row.getVisibleCells().map((cell, index) => (
             <TableCell
               key={cell.id}
