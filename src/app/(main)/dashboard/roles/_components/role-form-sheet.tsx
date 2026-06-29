@@ -141,7 +141,7 @@ export function RoleFormSheet({ open, onOpenChange, role, onSuccess: _, onSubmit
           </SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <ScrollArea className="flex-1">
             <div className="flex flex-col gap-5 p-5">
               {/* Name */}
@@ -218,11 +218,7 @@ export function RoleFormSheet({ open, onOpenChange, role, onSuccess: _, onSubmit
                             disabled={isSystem}
                           >
                             <Checkbox
-                              checked={allChecked}
-                              ref={(el) => {
-                                if (el)
-                                  (el as HTMLButtonElement & { indeterminate?: boolean }).indeterminate = someChecked;
-                              }}
+                              checked={someChecked ? "indeterminate" : allChecked}
                               className="pointer-events-none"
                               tabIndex={-1}
                             />
