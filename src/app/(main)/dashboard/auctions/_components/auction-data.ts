@@ -32,6 +32,8 @@ export interface IAuctionLot {
   reviewStatus: string;
   reviewRejectReason: string;
   lotOrder: number;
+  bidStartTime?: string;
+  bidEndTime?: string;
   sku: string;
   pickupAvailable: boolean;
   shippingAvailable: boolean;

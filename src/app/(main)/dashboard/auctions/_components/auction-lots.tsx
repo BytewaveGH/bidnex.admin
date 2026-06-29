@@ -1,3 +1,8 @@
+import { useState } from "react";
+
+import { useRouter } from "next/navigation";
+
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpDown,
   Bell,
@@ -7,6 +12,7 @@ import {
   Clock3,
   Copy,
   EllipsisVertical,
+  ExternalLink,
   FileText,
   Gavel,
   Home,
@@ -19,8 +25,22 @@ import {
   Shirt,
   Smartphone,
   SquareTerminal,
+  Trash2,
+  X,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -33,8 +53,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { apiRequest } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
+import { AuctionServices } from "../_logics/services";
 import type { IAuction, IAuctionLot } from "./auction-data";
 
 // ── Category → icon map ───────────────────────────────────────────────────────
@@ -54,14 +76,19 @@ function getCategoryIcon(name: string): LucideIcon {
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 
-function getAuctionStatus(status: string): "Active" | "Upcoming" | "Ended" {
-  if (status === "ended") return "Ended";
-  if (status === "active") return "Active";
-  return "Upcoming";
+function capitalizeStatus(status: string): string {
+  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function getTimeLeft(endTime: string, status: string): string {
-  if (status === "ended") return "Ended";
+function displayLotStatus(status: string): string {
+  if (status.toLowerCase() === "pending_review") return "Live";
+  return capitalizeStatus(status);
+}
+
+function getTimeLeft(endTime: string | undefined, status: string): string {
+  if (!endTime) return "—";
+  const s = status.toLowerCase();
+  if (s === "sold" || s === "unsold" || s === "ended") return "Ended";
   const diff = new Date(endTime).getTime() - Date.now();
   if (diff <= 0) return "Ended";
   const totalMins = Math.floor(diff / 60000);
@@ -121,10 +148,19 @@ function BidMeter({ label, value }: { label: string; value: number }) {
   );
 }
 
-function LotsTable({ lots, auction }: { lots: IAuctionLot[]; auction: IAuction }) {
-  const auctionStatus = getAuctionStatus(auction.status);
-  const timeLeft = getTimeLeft(auction.endTime, auction.status);
-
+export function LotsTable({
+  lots,
+  auction,
+  isDraft = false,
+  onRemoveLot,
+  removingLotId,
+}: {
+  lots: IAuctionLot[];
+  auction: IAuction;
+  isDraft?: boolean;
+  onRemoveLot?: (lotId: number) => void;
+  removingLotId?: number | null;
+}) {
   return (
     <div className="scrollbar-thin overflow-x-auto [scrollbar-color:var(--border)_transparent] **:data-[slot=table-container]:overflow-visible [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1">
       <Table className="min-w-[1700px] table-fixed **:data-[slot='table-cell']:px-5 **:data-[slot='table-head']:px-5">
@@ -160,7 +196,9 @@ function LotsTable({ lots, auction }: { lots: IAuctionLot[]; auction: IAuction }
           {lots.map((lot) => {
             const Icon = getCategoryIcon(lot.category.name);
             const bidStatus = lot.bidCount > 0 ? "Live" : "No Bids";
+            const timeLeft = getTimeLeft(lot.bidEndTime, lot.status);
             const metrics = computeMetrics(lot);
+            const isRemoving = removingLotId === lot.id;
 
             return (
               <TableRow key={lot.id}>
@@ -176,15 +214,8 @@ function LotsTable({ lots, auction }: { lots: IAuctionLot[]; auction: IAuction }
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant={auctionStatus === "Ended" ? "destructive" : "secondary"}
-                    className={cn(
-                      "rounded-sm px-1.5 py-0.5",
-                      auctionStatus === "Active" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-                      auctionStatus === "Upcoming" && "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-                    )}
-                  >
-                    {auctionStatus}
+                  <Badge variant="secondary" className="rounded-sm px-1.5 py-0.5">
+                    {displayLotStatus(lot.status)}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -232,11 +263,11 @@ function LotsTable({ lots, auction }: { lots: IAuctionLot[]; auction: IAuction }
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" className="-mr-2">
+                      <Button variant="ghost" size="icon-sm" className="-mr-2" disabled={isRemoving}>
                         <SquareTerminal />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-40" align="end">
+                    <DropdownMenuContent className="w-44" align="end">
                       <DropdownMenuGroup>
                         <DropdownMenuItem>
                           <FileText />
@@ -258,6 +289,21 @@ function LotsTable({ lots, auction }: { lots: IAuctionLot[]; auction: IAuction }
                           Copy Lot ID
                         </DropdownMenuItem>
                       </DropdownMenuGroup>
+                      {isDraft && onRemoveLot && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              disabled={isRemoving}
+                              onSelect={() => onRemoveLot(lot.id)}
+                            >
+                              <Trash2 />
+                              {isRemoving ? "Removing…" : "Remove from Auction"}
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -281,9 +327,50 @@ function EmptyAuctionState() {
   );
 }
 
+// ── Status badge ─────────────────────────────────────────────────────────────
+
+function AuctionStatusBadge({ status }: { status: string }) {
+  return <Badge variant="secondary">{capitalizeStatus(status)}</Badge>;
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
+const TERMINAL_STATUSES = new Set(["ended", "cancelled"]);
+
 export function AuctionLots({ auction }: { auction: IAuction }) {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const token = session?.accessToken;
+  const queryClient = useQueryClient();
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [removingLotId, setRemovingLotId] = useState<number | null>(null);
+
+  const status = auction.status.toLowerCase();
+  const isDraft = status === "draft";
+  const canCancel = !TERMINAL_STATUSES.has(status);
+
+  async function handleCancel() {
+    setIsCancelling(true);
+    try {
+      const svc = AuctionServices.CancelAuction(auction.id);
+      await apiRequest(svc.endpoint, token, { method: "PUT" });
+      void queryClient.invalidateQueries({ queryKey: ["admin-auctions"] });
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
+  async function handleRemoveLot(lotId: number) {
+    setRemovingLotId(lotId);
+    try {
+      const svc = AuctionServices.RemoveLot(auction.id, lotId);
+      await apiRequest(svc.endpoint, token, { method: "DELETE" });
+      void queryClient.invalidateQueries({ queryKey: ["admin-auctions"] });
+    } finally {
+      setRemovingLotId(null);
+    }
+  }
+
   return (
     <Collapsible
       defaultOpen
@@ -301,59 +388,109 @@ export function AuctionLots({ auction }: { auction: IAuction }) {
               {auction.locationName && (
                 <span className="min-w-0 truncate text-muted-foreground text-sm">({auction.locationName})</span>
               )}
+              <AuctionStatusBadge status={auction.status} />
             </div>
           </Button>
         </CollapsibleTrigger>
         <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end">
-          <Button variant="ghost" size="sm" className="-ml-1.5 sm:ml-0">
-            <Plus data-icon="inline-start" />
-            Add Lot
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon-sm">
-                <EllipsisVertical />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-44" align="end">
-              <DropdownMenuGroup>
-                {auction.lots.length > 0 ? (
-                  <DropdownMenuItem>
-                    <FileText />
-                    Bid History
+          {isDraft && (
+            <Button variant="ghost" size="sm" className="-ml-1.5 sm:ml-0">
+              <Plus data-icon="inline-start" />
+              Add Lot
+            </Button>
+          )}
+          <AlertDialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon-sm" disabled={isCancelling}>
+                  <EllipsisVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-44" align="end">
+                <DropdownMenuGroup>
+                  {auction.lots.length > 0 ? (
+                    <DropdownMenuItem>
+                      <FileText />
+                      Bid History
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem onSelect={() => router.push(`/dashboard/auctions/${auction.id}`)}>
+                    <ExternalLink />
+                    View Auction
                   </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem>
-                  <Gavel />
-                  View Auction
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings />
-                  Auction Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <RefreshCw />
-                  Sync Bids
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Bell />
-                  Manage Alerts
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <Copy />
-                  Copy Auction ID
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <DropdownMenuItem>
+                    <Settings />
+                    Auction Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <RefreshCw />
+                    Sync Bids
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Bell />
+                    Manage Alerts
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem>
+                    <Copy />
+                    Copy Auction ID
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                {canCancel && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          disabled={isCancelling}
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          <X />
+                          Cancel Auction
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                    </DropdownMenuGroup>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel this auction?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  <strong>{auction.title}</strong> will be cancelled and all pending bids will be voided. This cannot be
+                  undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep Auction</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-white hover:bg-destructive/90"
+                  onClick={() => void handleCancel()}
+                >
+                  Yes, Cancel Auction
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
       <CollapsibleContent>
-        {auction.lots.length > 0 ? <LotsTable lots={auction.lots} auction={auction} /> : <EmptyAuctionState />}
+        {auction.lots.length > 0 ? (
+          <LotsTable
+            lots={auction.lots}
+            auction={auction}
+            isDraft={isDraft}
+            onRemoveLot={isDraft ? handleRemoveLot : undefined}
+            removingLotId={removingLotId}
+          />
+        ) : (
+          <EmptyAuctionState />
+        )}
       </CollapsibleContent>
     </Collapsible>
   );
