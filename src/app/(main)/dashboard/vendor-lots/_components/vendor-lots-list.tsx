@@ -141,14 +141,14 @@ function makeColumns(onView: (id: number, e: React.MouseEvent) => void): ColumnD
       accessorKey: "startingBid",
       header: "Starting Bid",
       cell: ({ row }) => (
-        <div className="font-medium text-sm tabular-nums">GHS {row.original.startingBid.toFixed(2)}</div>
+        <div className="font-medium text-sm tabular-nums">GHS {row.original.startingBid?.toFixed(2) ?? "—"}</div>
       ),
     },
     {
       accessorKey: "reservePrice",
       header: "Reserve",
       cell: ({ row }) => (
-        <div className="font-medium text-sm tabular-nums">GHS {row.original.reservePrice.toFixed(2)}</div>
+        <div className="font-medium text-sm tabular-nums">GHS {row.original.reservePrice?.toFixed(2) ?? "—"}</div>
       ),
     },
     {
