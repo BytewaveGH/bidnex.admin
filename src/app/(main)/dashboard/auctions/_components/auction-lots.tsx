@@ -15,6 +15,7 @@ import {
   ExternalLink,
   FileText,
   Gavel,
+  Globe,
   Home,
   Laptop,
   type LucideIcon,
@@ -343,11 +344,23 @@ export function AuctionLots({ auction }: { auction: IAuction }) {
   const token = session?.accessToken;
   const queryClient = useQueryClient();
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [removingLotId, setRemovingLotId] = useState<number | null>(null);
 
   const status = auction.status.toLowerCase();
   const isDraft = status === "draft";
   const canCancel = !TERMINAL_STATUSES.has(status);
+
+  async function handlePublish() {
+    setIsPublishing(true);
+    try {
+      const svc = AuctionServices.ApproveAuction(auction.id);
+      await apiRequest(svc.endpoint, token, { method: "PUT" });
+      void queryClient.invalidateQueries({ queryKey: ["admin-auctions"] });
+    } finally {
+      setIsPublishing(false);
+    }
+  }
 
   async function handleCancel() {
     setIsCancelling(true);
@@ -438,6 +451,21 @@ export function AuctionLots({ auction }: { auction: IAuction }) {
                     Copy Auction ID
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
+                {isDraft && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        disabled={isPublishing}
+                        onSelect={() => void handlePublish()}
+                        className="text-green-700"
+                      >
+                        <Globe />
+                        {isPublishing ? "Publishing…" : "Publish Auction"}
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </>
+                )}
                 {canCancel && (
                   <>
                     <DropdownMenuSeparator />

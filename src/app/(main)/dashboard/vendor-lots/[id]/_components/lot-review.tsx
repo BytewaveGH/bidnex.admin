@@ -5,16 +5,21 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { AlertTriangle, CheckCircle2, ChevronLeft, Package, Truck, XCircle } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, CheckCircle2, ChevronLeft, Package, Save, Truck, XCircle } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { apiRequest } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 import type { LotImage, LotReviewStatus, VendorLot } from "../../_components/vendor-lots-data";
+import { VendorLotServices } from "../../_logics/services";
 
 const reviewStatusMeta: Record<LotReviewStatus, { label: string; className: string }> = {
   submitted: {
@@ -90,17 +95,52 @@ interface Props {
 
 export function LotReview({ lot }: Props) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const token = session?.accessToken;
+  const queryClient = useQueryClient();
+
   const [rejecting, setRejecting] = React.useState(false);
   const [reason, setReason] = React.useState("");
 
-  // Editable bidding fields — starting bid and reserve price are the same
-  const [reservePrice, setReservePrice] = React.useState(lot.reservePrice);
+  // Editable pricing fields
+  // startingBid defaults to lot.reservePrice since lot.startingBid is usually 0 from the API
+  const [startingBid, setStartingBid] = React.useState(lot.reservePrice);
   const [bidIncrement, setBidIncrement] = React.useState(lot.bidIncrement);
   const [msrp, setMsrp] = React.useState(lot.msrp ?? 0);
 
+  const isPricingDirty =
+    startingBid !== lot.reservePrice || bidIncrement !== lot.bidIncrement || msrp !== (lot.msrp ?? 0);
+
+  const pricingMutation = useMutation({
+    mutationFn: () => {
+      const svc = VendorLotServices.UpdatePricing(lot.id);
+      return apiRequest(svc.endpoint, token, {
+        method: "PUT",
+        body: { startingBid, reservePrice: lot.reservePrice, bidIncrement, msrp, buyNowPrice: lot.buyNowPrice },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Pricing saved.");
+      queryClient.invalidateQueries({ queryKey: ["admin-lot", String(lot.id)] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to save pricing."),
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: () => {
+      const svc = VendorLotServices.ApproveLot(lot.id);
+      return apiRequest(svc.endpoint, token, { method: "PUT" });
+    },
+    onSuccess: () => {
+      toast.success("Lot approved.");
+      router.push("/dashboard/vendor-lots");
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to approve lot."),
+  });
+
   // Reject if reserve price > 2/3 of MSRP
   const msrpThreshold = msrp > 0 ? (2 / 3) * msrp : Infinity;
-  const isReserveTooHigh = msrp > 0 && reservePrice > msrpThreshold;
+  const isReserveTooHigh = msrp > 0 && lot.reservePrice > msrpThreshold;
 
   const meta = reviewStatusMeta[lot.reviewStatus];
   const isSubmitted = lot.reviewStatus === "submitted";
@@ -237,11 +277,11 @@ export function LotReview({ lot }: Props) {
                   <div className="flex flex-col gap-2">
                     <Button
                       className="w-full bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                      disabled={isReserveTooHigh}
-                      onClick={() => router.push("/dashboard/vendor-lots")}
+                      disabled={isReserveTooHigh || approveMutation.isPending}
+                      onClick={() => approveMutation.mutate()}
                     >
                       <CheckCircle2 className="size-4" />
-                      Approve Lot
+                      {approveMutation.isPending ? "Approving…" : "Approve Lot"}
                     </Button>
                     <Button
                       variant="outline"
@@ -291,10 +331,16 @@ export function LotReview({ lot }: Props) {
               <CardTitle className="text-base leading-none">Bidding</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-              {/* Buy Now Price — top */}
+              {/* Buy Now Price — read-only */}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Buy Now Price</span>
                 <span className="font-medium text-sm tabular-nums">GHS {lot.buyNowPrice.toFixed(2)}</span>
+              </div>
+              <Separator />
+              {/* Reserve Price — read-only */}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-sm">Reserve Price</span>
+                <span className="font-medium text-sm tabular-nums">GHS {lot.reservePrice.toFixed(2)}</span>
               </div>
               <Separator />
               {/* MSRP — editable */}
@@ -303,13 +349,10 @@ export function LotReview({ lot }: Props) {
                 <EditablePrice value={msrp} onChange={setMsrp} />
               </div>
               <Separator />
-              {/* Starting Bid = Reserve Price — editable, single field */}
+              {/* Starting Bid — editable, defaults to reserve price */}
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground text-sm">
-                  Starting Bid
-                  <span className="block text-muted-foreground/70 text-xs">(Reserve Price)</span>
-                </span>
-                <EditablePrice value={reservePrice} onChange={setReservePrice} />
+                <span className="text-muted-foreground text-sm">Starting Bid</span>
+                <EditablePrice value={startingBid} onChange={setStartingBid} />
               </div>
               <Separator />
               {/* Bid Increment — editable */}
@@ -317,6 +360,20 @@ export function LotReview({ lot }: Props) {
                 <span className="text-muted-foreground text-sm">Bid Increment</span>
                 <EditablePrice value={bidIncrement} onChange={setBidIncrement} />
               </div>
+              {isPricingDirty && (
+                <>
+                  <Separator />
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    disabled={pricingMutation.isPending}
+                    onClick={() => pricingMutation.mutate()}
+                  >
+                    <Save className="size-3.5" />
+                    {pricingMutation.isPending ? "Saving…" : "Save Pricing"}
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
 
