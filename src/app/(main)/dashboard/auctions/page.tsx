@@ -34,6 +34,16 @@ interface ApiAuctionsResponse {
   status?: boolean;
 }
 
+interface AuctionStatsResponse {
+  data?: {
+    totalAuctions: number;
+    activeAuctions: number;
+    totalLots: number;
+    liveBids: number;
+  };
+  status?: boolean;
+}
+
 const PAGE_SIZE = 5;
 
 function preventNav(e: React.MouseEvent) {
@@ -71,13 +81,16 @@ export default function Page() {
     placeholderData: (prev) => prev,
   });
 
+  const { data: statsRes, isLoading: statsLoading } = useQuery({
+    queryKey: ["auction-stats"],
+    queryFn: () => apiRequest<AuctionStatsResponse>("/admin/auctions/stats", token),
+    enabled: sessionStatus === "authenticated",
+    staleTime: 60_000,
+  });
+
   const auctions: IAuction[] = res?.data?.data ?? [];
   const totalCount = res?.data?.count ?? 0;
-
-  const totalAuctions = totalCount;
-  const totalLots = auctions.reduce((acc, a) => acc + (a.lotCount ?? 0), 0);
-  const activeLots = auctions.filter((a) => a.status === "active").length;
-  const liveBids = auctions.flatMap((a) => a.lots).filter((l) => l.bidCount > 0).length;
+  const stats = statsRes?.data;
 
   const pageCount = Math.max(Math.ceil(totalCount / PAGE_SIZE), 1);
   const currentPage = page + 1;
@@ -91,9 +104,10 @@ export default function Page() {
 
   function handleRefresh() {
     void queryClient.invalidateQueries({ queryKey: ["admin-auctions"] });
+    void queryClient.invalidateQueries({ queryKey: ["auction-stats"] });
   }
 
-  const kpiLoading = isLoading || sessionStatus === "loading";
+  const kpiLoading = statsLoading || sessionStatus === "loading";
 
   return (
     <div className="flex flex-col gap-6">
@@ -116,7 +130,7 @@ export default function Page() {
             {kpiLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <span className="text-3xl leading-none tracking-tight">{totalAuctions}</span>
+              <span className="text-3xl leading-none tracking-tight">{stats?.totalAuctions ?? "—"}</span>
             )}
           </CardContent>
         </Card>
@@ -131,7 +145,7 @@ export default function Page() {
             {kpiLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <span className="text-3xl leading-none tracking-tight">{totalLots}</span>
+              <span className="text-3xl leading-none tracking-tight">{stats?.totalLots ?? "—"}</span>
             )}
           </CardContent>
         </Card>
@@ -146,7 +160,7 @@ export default function Page() {
             {kpiLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <span className="text-3xl leading-none tracking-tight">{activeLots}</span>
+              <span className="text-3xl leading-none tracking-tight">{stats?.activeAuctions ?? "—"}</span>
             )}
           </CardContent>
         </Card>
@@ -161,7 +175,7 @@ export default function Page() {
             {kpiLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <span className="text-3xl leading-none tracking-tight">{liveBids}</span>
+              <span className="text-3xl leading-none tracking-tight">{stats?.liveBids ?? "—"}</span>
             )}
           </CardContent>
         </Card>

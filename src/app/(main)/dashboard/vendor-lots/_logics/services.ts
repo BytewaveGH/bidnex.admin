@@ -29,4 +29,10 @@ export const VendorLotServices = {
   FetchStats() {
     return { endpoint: "/admin/lots/stats" };
   },
+  UpdatePricing(id: number) {
+    return { endpoint: `/admin/lots/${id}/pricing` };
+  },
+  ApproveLot(id: number) {
+    return { endpoint: `/admin/lots/${id}/approve` };
+  },
 };
