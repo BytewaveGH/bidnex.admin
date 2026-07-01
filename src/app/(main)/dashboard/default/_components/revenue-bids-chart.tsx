@@ -1,4 +1,5 @@
 "use client";
+"use no memo";
 
 import { useState } from "react";
 
@@ -15,7 +16,13 @@ import {
 } from "@/components/ui/chart";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const DAILY = [
+import type { RevenueBidsPeriods } from "./overview";
+
+interface Props {
+  revenueBids?: RevenueBidsPeriods;
+}
+
+const MOCK_DAILY = [
   { label: "Mon", revenue: 8400, bids: 34 },
   { label: "Tue", revenue: 12200, bids: 51 },
   { label: "Wed", revenue: 9800, bids: 42 },
@@ -25,7 +32,7 @@ const DAILY = [
   { label: "Sun", revenue: 18500, bids: 79 },
 ];
 
-const WEEKLY = [
+const MOCK_WEEKLY = [
   { label: "Wk 1", revenue: 68000, bids: 284 },
   { label: "Wk 2", revenue: 91000, bids: 379 },
   { label: "Wk 3", revenue: 74000, bids: 311 },
@@ -36,7 +43,7 @@ const WEEKLY = [
   { label: "Wk 8", revenue: 124000, bids: 519 },
 ];
 
-const MONTHLY = [
+const MOCK_MONTHLY = [
   { label: "Jan", revenue: 310000, bids: 1290 },
   { label: "Feb", revenue: 275000, bids: 1150 },
   { label: "Mar", revenue: 398000, bids: 1660 },
@@ -51,7 +58,7 @@ const MONTHLY = [
   { label: "Dec", revenue: 694000, bids: 2900 },
 ];
 
-const YEARLY = [
+const MOCK_YEARLY = [
   { label: "2021", revenue: 2100000, bids: 8800 },
   { label: "2022", revenue: 3400000, bids: 14200 },
   { label: "2023", revenue: 4800000, bids: 20100 },
@@ -66,13 +73,6 @@ const chartConfig = {
 
 type Period = "daily" | "weekly" | "monthly" | "yearly";
 
-const periodData: Record<Period, typeof DAILY> = {
-  daily: DAILY,
-  weekly: WEEKLY,
-  monthly: MONTHLY,
-  yearly: YEARLY,
-};
-
 const periodDescriptions: Record<Period, string> = {
   daily: "Last 7 days",
   weekly: "Last 8 weeks",
@@ -83,8 +83,16 @@ const periodDescriptions: Record<Period, string> = {
 const revenueTick = (v: number) =>
   v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v);
 
-export function RevenueBidsChart() {
+export function RevenueBidsChart({ revenueBids }: Props) {
   const [period, setPeriod] = useState<Period>("monthly");
+
+  const periodData: Record<Period, { label: string; revenue: number; bids: number }[]> = {
+    daily: revenueBids?.daily ?? MOCK_DAILY,
+    weekly: revenueBids?.weekly ?? MOCK_WEEKLY,
+    monthly: revenueBids?.monthly ?? MOCK_MONTHLY,
+    yearly: revenueBids?.yearly ?? MOCK_YEARLY,
+  };
+
   const data = periodData[period];
 
   return (

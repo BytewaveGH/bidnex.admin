@@ -1,7 +1,6 @@
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { ActionsNeeded } from "./_components/actions-needed";
 import { AnalyticsAvgBidTrend } from "./_components/analytics-avg-bid-trend";
 import { AnalyticsBidderBehaviour } from "./_components/analytics-bidder-behaviour";
 import { AnalyticsConversionFunnel } from "./_components/analytics-conversion-funnel";
@@ -9,12 +8,7 @@ import { AnalyticsPlatformEarnings } from "./_components/analytics-platform-earn
 import { AnalyticsRevenueByCategory } from "./_components/analytics-revenue-by-category";
 import { AnalyticsUserStats } from "./_components/analytics-user-stats";
 import { AnalyticsVendorPerformance } from "./_components/analytics-vendor-performance";
-import { AuctionPerformance } from "./_components/auction-performance";
-import { AuctionStatsCards } from "./_components/auction-stats-cards";
-import { LotApprovalFunnel } from "./_components/lot-approval-funnel";
-import { RevenueBidsChart } from "./_components/revenue-bids-chart";
-import { TopLotsTable } from "./_components/top-lots-table";
-import { VendorLeaderboard } from "./_components/vendor-leaderboard";
+import { Overview } from "./_components/overview";
 
 export default function Page() {
   return (
@@ -26,17 +20,7 @@ export default function Page() {
         </TabsList>
 
         <TabsContent value="overview" className="flex flex-col gap-4">
-          <AuctionStatsCards />
-          <RevenueBidsChart />
-          <TopLotsTable />
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <AuctionPerformance />
-            <ActionsNeeded />
-          </div>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <LotApprovalFunnel />
-            <VendorLeaderboard />
-          </div>
+          <Overview />
         </TabsContent>
 
         <TabsContent value="analytics" className="flex flex-col gap-8">

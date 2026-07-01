@@ -1,9 +1,21 @@
-import { Gavel, Package, Target, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { Gavel, Package, TrendingDown, TrendingUp, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function AuctionStatsCards() {
+import type { AnalyticsKpis, LotPipeline } from "./overview";
+
+interface Props {
+  kpis?: AnalyticsKpis;
+  lotPipeline?: LotPipeline;
+}
+
+export function AuctionStatsCards({ kpis, lotPipeline }: Props) {
+  const settledAllTime = lotPipeline?.settledAllTime ?? 1284;
+  const liveAuctions = kpis?.activeAuctions ?? 47;
+  const totalUsers = kpis?.totalUsers ?? 0;
+  const bidsToday = kpis?.bidsToday ?? 312;
+
   return (
     <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs xl:grid-cols-4 dark:*:data-[slot=card]:bg-card">
       <Card>
@@ -17,13 +29,11 @@ export function AuctionStatsCards() {
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="font-medium text-3xl tabular-nums leading-none tracking-tight">1,284</div>
-            <Badge>
-              <TrendingUp className="size-3" />
-              +8.2%
-            </Badge>
+            <div className="font-medium text-3xl tabular-nums leading-none tracking-tight">
+              {settledAllTime.toLocaleString()}
+            </div>
           </div>
-          <p className="text-muted-foreground text-sm">Completed auctions this month</p>
+          <p className="text-muted-foreground text-sm">Completed auctions all time</p>
         </CardContent>
       </Card>
 
@@ -38,34 +48,11 @@ export function AuctionStatsCards() {
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="font-medium text-3xl tabular-nums leading-none tracking-tight">47</div>
-            <Badge>
-              <TrendingUp className="size-3" />
-              +3 today
-            </Badge>
+            <div className="font-medium text-3xl tabular-nums leading-none tracking-tight">
+              {liveAuctions.toLocaleString()}
+            </div>
           </div>
           <p className="text-muted-foreground text-sm">Active right now</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <div className="flex size-7 items-center justify-center rounded-lg border bg-muted text-muted-foreground">
-              <Target className="size-4" />
-            </div>
-          </CardTitle>
-          <CardDescription>Reserve Met Rate</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="font-medium text-3xl tabular-nums leading-none tracking-tight">64%</div>
-            <Badge variant="destructive">
-              <TrendingDown className="size-3" />
-              -3.1%
-            </Badge>
-          </div>
-          <p className="text-muted-foreground text-sm">Lots that met reserve price</p>
         </CardContent>
       </Card>
 
@@ -76,17 +63,44 @@ export function AuctionStatsCards() {
               <Users className="size-4" />
             </div>
           </CardTitle>
+          <CardDescription>Total Users</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="font-medium text-3xl tabular-nums leading-none tracking-tight">
+              {totalUsers.toLocaleString()}
+            </div>
+            {(kpis?.revenueChange ?? 0) !== 0 && (
+              <Badge variant={(kpis?.revenueChange ?? 0) >= 0 ? "default" : "destructive"}>
+                {(kpis?.revenueChange ?? 0) >= 0 ? (
+                  <TrendingUp className="size-3" />
+                ) : (
+                  <TrendingDown className="size-3" />
+                )}
+                {Math.abs(kpis?.revenueChange ?? 0)}%
+              </Badge>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm">Registered on the platform</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <div className="flex size-7 items-center justify-center rounded-lg border bg-muted text-muted-foreground">
+              <Gavel className="size-4" />
+            </div>
+          </CardTitle>
           <CardDescription>Active Bidders Today</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="font-medium text-3xl tabular-nums leading-none tracking-tight">312</div>
-            <Badge>
-              <TrendingUp className="size-3" />
-              +24%
-            </Badge>
+            <div className="font-medium text-3xl tabular-nums leading-none tracking-tight">
+              {bidsToday.toLocaleString()}
+            </div>
           </div>
-          <p className="text-muted-foreground text-sm">vs. yesterday&apos;s 252</p>
+          <p className="text-muted-foreground text-sm">Bids placed in the last 24h</p>
         </CardContent>
       </Card>
     </div>
