@@ -104,19 +104,25 @@ export function LotReview({ lot }: Props) {
 
   // Editable pricing fields
   // startingBid defaults to lot.reservePrice since lot.startingBid is usually 0 from the API
-  const [startingBid, setStartingBid] = React.useState(lot.reservePrice);
-  const [bidIncrement, setBidIncrement] = React.useState(lot.bidIncrement);
+  const [startingBid, setStartingBid] = React.useState(lot.reservePrice ?? 0);
+  const [bidIncrement, setBidIncrement] = React.useState(lot.bidIncrement ?? 0);
   const [msrp, setMsrp] = React.useState(lot.msrp ?? 0);
 
   const isPricingDirty =
-    startingBid !== lot.reservePrice || bidIncrement !== lot.bidIncrement || msrp !== (lot.msrp ?? 0);
+    startingBid !== (lot.reservePrice ?? 0) || bidIncrement !== (lot.bidIncrement ?? 0) || msrp !== (lot.msrp ?? 0);
 
   const pricingMutation = useMutation({
     mutationFn: () => {
       const svc = VendorLotServices.UpdatePricing(lot.id);
       return apiRequest(svc.endpoint, token, {
         method: "PUT",
-        body: { startingBid, reservePrice: lot.reservePrice, bidIncrement, msrp, buyNowPrice: lot.buyNowPrice },
+        body: {
+          startingBid,
+          reservePrice: lot.reservePrice ?? 0,
+          bidIncrement,
+          msrp,
+          buyNowPrice: lot.buyNowPrice ?? 0,
+        },
       });
     },
     onSuccess: () => {
@@ -334,13 +340,13 @@ export function LotReview({ lot }: Props) {
               {/* Buy Now Price — read-only */}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Buy Now Price</span>
-                <span className="font-medium text-sm tabular-nums">GHS {lot.buyNowPrice.toFixed(2)}</span>
+                <span className="font-medium text-sm tabular-nums">GHS {(lot.buyNowPrice ?? 0).toFixed(2)}</span>
               </div>
               <Separator />
               {/* Reserve Price — read-only */}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Reserve Price</span>
-                <span className="font-medium text-sm tabular-nums">GHS {lot.reservePrice.toFixed(2)}</span>
+                <span className="font-medium text-sm tabular-nums">GHS {(lot.reservePrice ?? 0).toFixed(2)}</span>
               </div>
               <Separator />
               {/* MSRP — editable */}
