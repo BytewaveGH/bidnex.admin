@@ -15,7 +15,6 @@ export interface CreateAuctionBody {
 }
 
 export interface AssignLotBody {
-  isFeatured: boolean;
   lotInterval: number;
   lotOrder: number;
 }

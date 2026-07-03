@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Check, GripVertical, Search, Star, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import { AuctionServices } from "../../_logics/services";
 interface ConfiguredLot {
   lot: VendorLot;
   featured: boolean;
+  featuredPending?: boolean;
 }
 
 interface AuctionForm {
@@ -455,6 +457,7 @@ function LotsStep({
                         <Switch
                           size="sm"
                           checked={cl.featured}
+                          disabled={cl.featuredPending}
                           onCheckedChange={(v) => onFeaturedChange(cl.lot.id, v)}
                         />
                       </div>
@@ -662,8 +665,19 @@ export function NewAuctionForm() {
     setConfiguredLots((prev) => prev.filter((cl) => cl.lot.id !== id));
   }
 
-  function handleFeaturedChange(id: number, value: boolean) {
-    setConfiguredLots((prev) => prev.map((cl) => (cl.lot.id === id ? { ...cl, featured: value } : cl)));
+  async function handleFeaturedChange(id: number, value: boolean) {
+    setConfiguredLots((prev) =>
+      prev.map((cl) => (cl.lot.id === id ? { ...cl, featured: value, featuredPending: true } : cl)),
+    );
+    try {
+      const featureSvc = VendorLotServices.FeatureLot(id, value);
+      await apiRequest(featureSvc.endpoint, token, { method: "PUT", body: featureSvc.body });
+    } catch (err) {
+      setConfiguredLots((prev) => prev.map((cl) => (cl.lot.id === id ? { ...cl, featured: !value } : cl)));
+      toast.error(err instanceof Error ? err.message : "Failed to update featured status.");
+    } finally {
+      setConfiguredLots((prev) => prev.map((cl) => (cl.lot.id === id ? { ...cl, featuredPending: false } : cl)));
+    }
   }
 
   async function handleCreate() {
@@ -687,14 +701,25 @@ export function NewAuctionForm() {
       });
       const auctionId = res.data.id;
 
-      for (let i = 0; i < configuredLots.length; i++) {
-        const cl = configuredLots[i];
-        const assignSvc = AuctionServices.AssignLot(auctionId, cl.lot.id, {
-          isFeatured: cl.featured,
-          lotInterval: parseInt(form.lotIntervalMinutes, 10),
-          lotOrder: i + 1,
-        });
-        await apiRequest(assignSvc.endpoint, token, { method: "POST", body: assignSvc.body });
+      const lotResults = await Promise.allSettled(
+        configuredLots.map((cl, i) => {
+          const assignSvc = AuctionServices.AssignLot(auctionId, cl.lot.id, {
+            lotInterval: parseInt(form.lotIntervalMinutes, 10),
+            lotOrder: i + 1,
+          });
+          return apiRequest(assignSvc.endpoint, token, { method: "POST", body: assignSvc.body });
+        }),
+      );
+
+      const failedLots = lotResults
+        .map((result, i) => ({ result, lot: configuredLots[i].lot }))
+        .filter(
+          (entry): entry is { result: PromiseRejectedResult; lot: VendorLot } => entry.result.status === "rejected",
+        );
+
+      if (failedLots.length > 0) {
+        const names = failedLots.map((f) => f.lot.title).join(", ");
+        throw new Error(`Auction created, but failed to add ${failedLots.length} lot(s): ${names}`);
       }
 
       const scheduleSvc = AuctionServices.ScheduleAuction(auctionId, {

@@ -35,4 +35,7 @@ export const VendorLotServices = {
   ApproveLot(id: number) {
     return { endpoint: `/admin/lots/${id}/approve` };
   },
+  FeatureLot(id: number, featured: boolean) {
+    return { endpoint: `/admin/lots/${id}/feature`, body: { featured } };
+  },
 };
