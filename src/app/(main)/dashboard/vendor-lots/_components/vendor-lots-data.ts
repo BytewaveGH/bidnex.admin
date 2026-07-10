@@ -3,7 +3,7 @@ export type LotReviewStatus = "draft" | "submitted" | "approved" | "rejected";
 export interface LotImage {
   id: number;
   url: string;
-  mediaType: string;
+  mediaType: "image" | "video";
   isPrimary: boolean;
   displayOrder: number;
   createdAt: string;
