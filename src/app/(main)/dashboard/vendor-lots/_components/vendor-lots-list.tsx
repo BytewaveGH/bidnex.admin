@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { useQuery } from "@tanstack/react-query";
 import { type ColumnDef, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
-import { ChevronDownIcon, Eye, ListFilter } from "lucide-react";
+import { ChevronDownIcon, Eye, ListFilter, Play, Video } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 import { Badge } from "@/components/ui/badge";
@@ -105,17 +105,33 @@ function makeColumns(onView: (id: number, e: React.MouseEvent) => void): ColumnD
     {
       accessorKey: "title",
       header: "Lot Title",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          {row.original.primaryImage && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={row.original.primaryImage} alt="" className="size-9 shrink-0 rounded-md border object-cover" />
-          )}
-          <div className="max-w-xs truncate font-medium text-sm" title={row.original.title}>
-            {row.original.title}
+      cell: ({ row }) => {
+        const media = row.original.images ?? [];
+        const thumbnail = media.find((m) => m.mediaType !== "video")?.url;
+        const hasVideo = media.some((m) => m.mediaType === "video");
+        return (
+          <div className="flex items-center gap-3">
+            <div className="relative size-9 shrink-0">
+              {thumbnail ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={thumbnail} alt="" className="size-9 rounded-md border object-cover" />
+              ) : (
+                <div className="grid size-9 place-items-center rounded-md border bg-muted">
+                  <Video className="size-4 text-muted-foreground" />
+                </div>
+              )}
+              {thumbnail && hasVideo && (
+                <span className="absolute -right-1 -bottom-1 grid size-4 place-items-center rounded-full border bg-background">
+                  <Play className="size-2.5 fill-current" />
+                </span>
+              )}
+            </div>
+            <div className="max-w-xs truncate font-medium text-sm" title={row.original.title}>
+              {row.original.title}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       accessorKey: "vendorId",

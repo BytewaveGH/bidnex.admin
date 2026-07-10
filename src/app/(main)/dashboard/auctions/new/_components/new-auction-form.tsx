@@ -5,7 +5,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, GripVertical, Search, Star, Trash2 } from "lucide-react";
+import { Check, GripVertical, Search, Star, Trash2, Video } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -61,6 +61,23 @@ function stepCircleClass(i: number, current: number) {
   if (i < current) return "bg-emerald-600 text-white";
   if (i === current) return "bg-primary text-primary-foreground";
   return "border bg-muted text-muted-foreground";
+}
+
+// ─── Lot Thumbnail ───────────────────────────────────────────────────────────
+// lot.primaryImage can point at a video (mediaType "video"); fall back to the
+// first non-video media item so we never try to render a video file as an <img>.
+
+function LotThumbnail({ lot, className }: { lot: VendorLot; className: string }) {
+  const thumbnail = lot.images?.find((m) => m.mediaType !== "video")?.url;
+  if (!thumbnail) {
+    return (
+      <div className={cn("grid shrink-0 place-items-center rounded-md border bg-muted", className)}>
+        <Video className="size-4 text-muted-foreground" />
+      </div>
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={thumbnail} alt="" className={cn("shrink-0 rounded-md border object-cover", className)} />;
 }
 
 // ─── Step Indicator ──────────────────────────────────────────────────────────
@@ -323,8 +340,7 @@ function LotsStep({
       <div className="divide-y border-t">
         {available.map((lot) => (
           <div key={lot.id} className="flex items-center gap-3 px-6 py-3">
-            {/* biome-ignore lint/performance/noImgElement: lot thumbnail */}
-            <img src={lot.primaryImage} alt="" className="size-10 shrink-0 rounded-md border object-cover" />
+            <LotThumbnail lot={lot} className="size-10" />
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium text-sm" title={lot.title}>
                 {lot.title}
@@ -425,12 +441,7 @@ function LotsStep({
                     {/* Lot title row */}
                     <div className="flex items-center gap-3">
                       <GripVertical className="size-4 shrink-0 text-muted-foreground/40" />
-                      {/* biome-ignore lint/performance/noImgElement: lot thumbnail */}
-                      <img
-                        src={cl.lot.primaryImage}
-                        alt=""
-                        className="size-9 shrink-0 rounded-md border object-cover"
-                      />
+                      <LotThumbnail lot={cl.lot} className="size-9" />
                       <p className="min-w-0 flex-1 truncate font-medium text-sm" title={cl.lot.title}>
                         {cl.lot.title}
                       </p>
@@ -575,8 +586,7 @@ function ReviewStep({ form, configuredLots }: { form: AuctionForm; configuredLot
             {configuredLots.map((cl, i) => (
               <div key={cl.lot.id} className="flex items-center gap-3 px-6 py-3">
                 <span className="w-5 shrink-0 text-center text-muted-foreground text-xs">{i + 1}</span>
-                {/* biome-ignore lint/performance/noImgElement: lot thumbnail */}
-                <img src={cl.lot.primaryImage} alt="" className="size-9 shrink-0 rounded-md border object-cover" />
+                <LotThumbnail lot={cl.lot} className="size-9" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-sm">{cl.lot.title}</p>
                   <div className="mt-0.5 flex items-center gap-1.5">

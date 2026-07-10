@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, ChevronLeft, Package, Save, Truck, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronLeft, Package, Play, Save, Truck, XCircle } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -41,13 +41,20 @@ function formatDate(iso: string) {
 }
 
 function ImageGallery({ images, primaryImage }: { images: LotImage[]; primaryImage: string }) {
-  const [active, setActive] = React.useState(primaryImage || images[0]?.url || "");
+  const [active, setActive] = React.useState<LotImage | undefined>(
+    () => images.find((img) => img.url === primaryImage) ?? images[0],
+  );
 
   return (
     <div className="flex flex-col gap-2">
       <div className="relative aspect-video w-full overflow-hidden rounded-lg border bg-muted">
         {active ? (
-          <img src={active} alt="Lot" className="size-full object-contain" />
+          active.mediaType === "video" ? (
+            // biome-ignore lint/a11y/useMediaCaption: vendor-uploaded lot videos have no caption track available
+            <video key={active.url} src={active.url} controls className="size-full object-contain" />
+          ) : (
+            <img src={active.url} alt="Lot" className="size-full object-contain" />
+          )
         ) : (
           <div className="grid size-full place-items-center text-muted-foreground text-sm">No image</div>
         )}
@@ -58,13 +65,19 @@ function ImageGallery({ images, primaryImage }: { images: LotImage[]; primaryIma
             <button
               type="button"
               key={img.id}
-              onClick={() => setActive(img.url)}
+              onClick={() => setActive(img)}
               className={cn(
-                "size-16 shrink-0 overflow-hidden rounded-md border bg-muted transition-all",
-                active === img.url ? "ring-2 ring-primary ring-offset-1" : "opacity-60 hover:opacity-100",
+                "relative size-16 shrink-0 overflow-hidden rounded-md border bg-muted transition-all",
+                active?.id === img.id ? "ring-2 ring-primary ring-offset-1" : "opacity-60 hover:opacity-100",
               )}
             >
-              <img src={img.url} alt="" className="size-full object-cover" />
+              {img.mediaType === "video" ? (
+                <div className="grid size-full place-items-center bg-muted">
+                  <Play className="size-5 fill-current text-muted-foreground" />
+                </div>
+              ) : (
+                <img src={img.url} alt="" className="size-full object-cover" />
+              )}
             </button>
           ))}
         </div>
