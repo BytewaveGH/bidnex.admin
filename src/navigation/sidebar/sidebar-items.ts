@@ -1,6 +1,7 @@
 import {
   Banknote,
   CheckSquare,
+  Clock,
   LayoutDashboard,
   Lock,
   type LucideIcon,
@@ -112,6 +113,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Vendor Lots",
         url: "/dashboard/vendor-lots",
         icon: Package,
+      },
+      {
+        id: "overdue-checkout",
+        title: "Overdue Checkout",
+        url: "/dashboard/overdue-checkout",
+        icon: Clock,
       },
       {
         id: "disputes",
