@@ -217,6 +217,7 @@ export function VendorLotsList() {
   const [reviewStatusFilter, setReviewStatusFilter] = React.useState("all");
   const [searchInput, setSearchInput] = React.useState("");
   const [search, setSearch] = React.useState("");
+  const [unassignedOnly, setUnassignedOnly] = React.useState(false);
 
   function resetPage() {
     setPage(0);
@@ -232,6 +233,12 @@ export function VendorLotsList() {
       setSearch(searchInput);
       resetPage();
     }
+  }
+
+  function handleUnassignedToggle() {
+    setUnassignedOnly((prev) => !prev);
+    setReviewStatusFilter("all");
+    resetPage();
   }
 
   // ── Stats (reads from cache populated by page.tsx) ────────────────────────
@@ -250,8 +257,12 @@ export function VendorLotsList() {
     isLoading,
     isFetching,
   } = useQuery({
-    queryKey: ["admin-lots", page, pageSize, reviewStatusFilter, search],
+    queryKey: ["admin-lots", page, pageSize, reviewStatusFilter, search, unassignedOnly],
     queryFn: async () => {
+      if (unassignedOnly) {
+        const svc = VendorLotServices.FetchUnassigned({ page: page + 1, limit: pageSize });
+        return apiRequest<ApiLotsResponse>(svc.endpoint, token, { params: svc.params });
+      }
       const svc = VendorLotServices.FetchAll({
         page: page + 1,
         limit: pageSize,
@@ -314,43 +325,54 @@ export function VendorLotsList() {
             )}
           </CardTitle>
           <CardDescription>
-            Review and approve lots submitted by vendors before assigning them to auctions.
+            {unassignedOnly
+              ? "Approved lots not yet assigned to any auction."
+              : "Review and approve lots submitted by vendors before assigning them to auctions."}
           </CardDescription>
           <CardAction>
             <div className="flex items-center gap-2">
-              <Input
-                className="h-7 w-44 md:w-52"
-                placeholder="Search lots…"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-              />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <ListFilter data-icon="inline-start" />
-                    Review Status
-                    <ChevronDownIcon data-icon="inline-end" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuRadioGroup value={reviewStatusFilter} onValueChange={handleStatusChange}>
-                    {reviewStatusOptions.map((opt) => {
-                      const count = opt === "all" ? statsTotal : byStatus?.[opt as LotReviewStatus];
-                      return (
-                        <DropdownMenuRadioItem key={opt} value={opt}>
-                          <span className="flex-1">
-                            {opt === "all" ? "All statuses" : (reviewStatusMeta[opt as LotReviewStatus]?.label ?? opt)}
-                          </span>
-                          {count !== undefined && (
-                            <span className="ml-2 text-muted-foreground text-xs tabular-nums">{count}</span>
-                          )}
-                        </DropdownMenuRadioItem>
-                      );
-                    })}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {!unassignedOnly && (
+                <Input
+                  className="h-7 w-44 md:w-52"
+                  placeholder="Search lots…"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                />
+              )}
+              <Button variant={unassignedOnly ? "default" : "outline"} size="sm" onClick={handleUnassignedToggle}>
+                Unassigned
+              </Button>
+              {!unassignedOnly && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <ListFilter data-icon="inline-start" />
+                      Review Status
+                      <ChevronDownIcon data-icon="inline-end" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuRadioGroup value={reviewStatusFilter} onValueChange={handleStatusChange}>
+                      {reviewStatusOptions.map((opt) => {
+                        const count = opt === "all" ? statsTotal : byStatus?.[opt as LotReviewStatus];
+                        return (
+                          <DropdownMenuRadioItem key={opt} value={opt}>
+                            <span className="flex-1">
+                              {opt === "all"
+                                ? "All statuses"
+                                : (reviewStatusMeta[opt as LotReviewStatus]?.label ?? opt)}
+                            </span>
+                            {count !== undefined && (
+                              <span className="ml-2 text-muted-foreground text-xs tabular-nums">{count}</span>
+                            )}
+                          </DropdownMenuRadioItem>
+                        );
+                      })}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </CardAction>
         </CardHeader>
