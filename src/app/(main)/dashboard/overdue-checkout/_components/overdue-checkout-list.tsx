@@ -72,6 +72,11 @@ function getHoursOverdue(lot: OverdueLot): number {
     const diff = Date.now() - new Date(lot.checkoutDeadline).getTime();
     return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
   }
+  // Fallback: time elapsed since auction ended (bidEndTime)
+  if (lot.bidEndTime) {
+    const diff = Date.now() - new Date(lot.bidEndTime).getTime();
+    return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
+  }
   return 0;
 }
 
@@ -131,9 +136,11 @@ function RelistDialog({ lot, isPending, onConfirm, onCancel }: RelistDialogProps
             <div className="flex flex-col gap-3">
               <p>
                 This will cancel{" "}
-                <span className="font-medium text-foreground">{lot?.winnerName ?? "the winner"}&apos;s</span> claim and
-                return <span className="font-medium text-foreground">{lot?.title}</span> to the lot pool for
-                reassignment.
+                <span className="font-medium text-foreground">
+                  {lot?.winnerName ?? (lot?.winnerId ? `User #${lot.winnerId}` : "the winner")}
+                </span>
+                &apos;s claim and return <span className="font-medium text-foreground">{lot?.title}</span> to the lot
+                pool for reassignment.
               </p>
               <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-destructive text-xs leading-relaxed">
                 This action cannot be undone. The buyer will lose their winning status and any pending payment will be
@@ -200,62 +207,51 @@ function makeColumns(onRequestRelist: (lot: OverdueLot) => void, relistingId: nu
       header: "Winner",
       cell: ({ row }) => {
         const lot = row.original;
-        if (!lot.winnerName && !lot.winnerEmail) {
-          return <span className="text-muted-foreground text-sm">—</span>;
+        // Backend returns winnerId only; name/email may be added in future
+        if (lot.winnerName) {
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium text-sm">{lot.winnerName}</span>
+              {lot.winnerEmail && (
+                <a
+                  href={`mailto:${lot.winnerEmail}`}
+                  className="text-muted-foreground text-xs hover:text-foreground hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {lot.winnerEmail}
+                </a>
+              )}
+            </div>
+          );
         }
-        return (
-          <div className="flex flex-col gap-0.5">
-            {lot.winnerName && <span className="font-medium text-sm">{lot.winnerName}</span>}
-            {lot.winnerEmail && (
-              <a
-                href={`mailto:${lot.winnerEmail}`}
-                className="text-muted-foreground text-xs hover:text-foreground hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {lot.winnerEmail}
-              </a>
-            )}
-          </div>
-        );
+        if (lot.winnerId) {
+          return <span className="font-medium text-sm">User #{lot.winnerId}</span>;
+        }
+        return <span className="text-muted-foreground text-sm">—</span>;
       },
     },
     {
       accessorKey: "currentBid",
       header: "Winning Bid",
       cell: ({ row }) => (
-        <span className="font-medium text-sm tabular-nums">GHS {row.original.currentBid.toFixed(2)}</span>
+        <div className="flex flex-col gap-0.5">
+          <span className="font-medium text-sm tabular-nums">GHS {row.original.currentBid.toFixed(2)}</span>
+          {row.original.bidCount !== undefined && (
+            <span className="text-muted-foreground text-xs">
+              {row.original.bidCount} bid{row.original.bidCount !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
       ),
     },
     {
-      id: "auction",
-      header: "Auction",
+      id: "ended",
+      header: "Auction Ended",
       cell: ({ row }) => {
         const lot = row.original;
-        if (!lot.auctionTitle) return <span className="text-muted-foreground text-sm">—</span>;
-        return (
-          <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-sm">{lot.auctionTitle}</span>
-            {lot.auctionId && <span className="text-muted-foreground text-xs">#{lot.auctionId}</span>}
-          </div>
-        );
-      },
-    },
-    {
-      id: "endTime",
-      header: "Ended",
-      cell: ({ row }) => {
-        const lot = row.original;
-        if (!lot.endTime) return <span className="text-muted-foreground text-sm">—</span>;
-        return <span className="text-sm">{formatDate(lot.endTime)}</span>;
-      },
-    },
-    {
-      id: "checkoutDeadline",
-      header: "Deadline",
-      cell: ({ row }) => {
-        const lot = row.original;
-        if (!lot.checkoutDeadline) return <span className="text-muted-foreground text-sm">—</span>;
-        return <span className="text-sm">{formatDate(lot.checkoutDeadline)}</span>;
+        const iso = lot.bidEndTime ?? lot.checkoutDeadline;
+        if (!iso) return <span className="text-muted-foreground text-sm">—</span>;
+        return <span className="text-sm">{formatDate(iso)}</span>;
       },
     },
     {
