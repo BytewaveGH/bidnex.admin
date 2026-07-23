@@ -6,13 +6,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, ChevronLeft, Package, Play, Save, Truck, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronLeft,
+  LayoutTemplate,
+  Package,
+  Play,
+  Save,
+  Truck,
+  XCircle,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/api-client";
@@ -38,6 +50,69 @@ function formatDate(iso: string) {
   const d = new Date(iso);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+const rejectionTemplates = [
+  {
+    label: "Poor Image Quality",
+    text: "Please provide clear, well-lit photos showing the item from multiple angles.",
+  },
+  {
+    label: "Incomplete Description",
+    text: "The item description is missing key details. Please include condition, dimensions, and specifications.",
+  },
+  {
+    label: "Reserve Price Too High",
+    text: "The reserve price exceeds our policy threshold relative to MSRP. Please lower the reserve price and resubmit.",
+  },
+  {
+    label: "Prohibited Item",
+    text: "This item is not permitted on our platform. Please review our prohibited items policy.",
+  },
+  {
+    label: "Duplicate Listing",
+    text: "This lot appears to be a duplicate of an existing listing.",
+  },
+  {
+    label: "Condition Mismatch",
+    text: "The described condition does not match the condition shown in the photos provided.",
+  },
+];
+
+function RejectionTemplatePicker({ onSelect }: { onSelect: (text: string) => void }) {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2 text-xs">
+          <LayoutTemplate className="size-3.5" />
+          Template
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-0">
+        <Command>
+          <CommandInput placeholder="Apply template..." />
+          <CommandList>
+            <CommandGroup heading="Rejection Reasons">
+              {rejectionTemplates.map((template) => (
+                <CommandItem
+                  key={template.label}
+                  value={template.label}
+                  onSelect={() => {
+                    onSelect(template.text);
+                    setOpen(false);
+                  }}
+                >
+                  {template.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function ImageGallery({ images, primaryImage }: { images: LotImage[]; primaryImage: string }) {
@@ -116,13 +191,15 @@ export function LotReview({ lot }: Props) {
   const [reason, setReason] = React.useState("");
 
   // Editable pricing fields
-  // startingBid defaults to lot.reservePrice since lot.startingBid is usually 0 from the API
-  const [startingBid, setStartingBid] = React.useState(lot.reservePrice ?? 0);
+  // startingBid defaults to lot.reservePrice since lot.startingBid is usually 0 from the API,
+  // falling back to 1 when there's no reserve price (a starting bid of 0 isn't valid)
+  const defaultStartingBid = lot.reservePrice || 1;
+  const [startingBid, setStartingBid] = React.useState(defaultStartingBid);
   const [bidIncrement, setBidIncrement] = React.useState(lot.bidIncrement ?? 0);
   const [msrp, setMsrp] = React.useState(lot.msrp ?? 0);
 
   const isPricingDirty =
-    startingBid !== (lot.reservePrice ?? 0) || bidIncrement !== (lot.bidIncrement ?? 0) || msrp !== (lot.msrp ?? 0);
+    startingBid !== defaultStartingBid || bidIncrement !== (lot.bidIncrement ?? 0) || msrp !== (lot.msrp ?? 0);
 
   const pricingMutation = useMutation({
     mutationFn: () => {
@@ -157,12 +234,26 @@ export function LotReview({ lot }: Props) {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to approve lot."),
   });
 
+  const rejectMutation = useMutation({
+    mutationFn: () => {
+      const svc = VendorLotServices.RejectLot(lot.id);
+      return apiRequest(svc.endpoint, token, { method: "PUT", body: { reason } });
+    },
+    onSuccess: () => {
+      toast.success("Lot rejected.");
+      router.push("/dashboard/vendor-lots");
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to reject lot."),
+  });
+
   // Reject if reserve price > 2/3 of MSRP
   const msrpThreshold = msrp > 0 ? (2 / 3) * msrp : Infinity;
   const isReserveTooHigh = msrp > 0 && lot.reservePrice > msrpThreshold;
 
   const meta = reviewStatusMeta[lot.reviewStatus];
   const isSubmitted = lot.reviewStatus === "submitted";
+  const isApproved = lot.reviewStatus === "approved";
+  const canReview = isSubmitted || isApproved;
 
   const specEntries = Object.entries(lot.specifications ?? {});
 
@@ -249,15 +340,19 @@ export function LotReview({ lot }: Props) {
         {/* ── Right column ── */}
         <div className="flex flex-col gap-6">
           {/* Review decision — top of right col */}
-          {isSubmitted && (
+          {canReview && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base leading-none">Review Decision</CardTitle>
-                <CardDescription>Approve or reject this lot. The vendor will be notified.</CardDescription>
+                <CardDescription>
+                  {isSubmitted
+                    ? "Approve or reject this lot. The vendor will be notified."
+                    : "Reject this lot to pull it from listing. The vendor will be notified."}
+                </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <Separator />
-                {isReserveTooHigh && !rejecting && (
+                {isSubmitted && isReserveTooHigh && !rejecting && (
                   <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
                     <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
                     <p className="text-amber-700 text-xs leading-relaxed dark:text-amber-300">
@@ -268,9 +363,12 @@ export function LotReview({ lot }: Props) {
                 {rejecting ? (
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-col gap-1.5">
-                      <label htmlFor="rejection-reason" className="font-medium text-sm">
-                        Rejection Reason
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="rejection-reason" className="font-medium text-sm">
+                          Rejection Reason
+                        </label>
+                        <RejectionTemplatePicker onSelect={setReason} />
+                      </div>
                       <Textarea
                         id="rejection-reason"
                         placeholder="Explain why this lot is being rejected..."
@@ -281,27 +379,34 @@ export function LotReview({ lot }: Props) {
                     </div>
                     <Button
                       variant="destructive"
-                      disabled={!reason.trim()}
-                      onClick={() => router.push("/dashboard/vendor-lots")}
+                      disabled={!reason.trim() || rejectMutation.isPending}
+                      onClick={() => rejectMutation.mutate()}
                       className="w-full"
                     >
                       <XCircle className="size-4" />
-                      Confirm Rejection
+                      {rejectMutation.isPending ? "Rejecting…" : "Confirm Rejection"}
                     </Button>
-                    <Button variant="outline" className="w-full" onClick={() => setRejecting(false)}>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled={rejectMutation.isPending}
+                      onClick={() => setRejecting(false)}
+                    >
                       Cancel
                     </Button>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    <Button
-                      className="w-full bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                      disabled={isReserveTooHigh || approveMutation.isPending}
-                      onClick={() => approveMutation.mutate()}
-                    >
-                      <CheckCircle2 className="size-4" />
-                      {approveMutation.isPending ? "Approving…" : "Approve Lot"}
-                    </Button>
+                    {isSubmitted && (
+                      <Button
+                        className="w-full bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                        disabled={isReserveTooHigh || approveMutation.isPending}
+                        onClick={() => approveMutation.mutate()}
+                      >
+                        <CheckCircle2 className="size-4" />
+                        {approveMutation.isPending ? "Approving…" : "Approve Lot"}
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       className="w-full border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
