@@ -1,72 +1,142 @@
-# Analytics Endpoint — Remaining Data Prompt
+# `GET /api/admin/analytics` — Full Endpoint Specification
 
-This is a continuation prompt for the `/api/admin/analytics` endpoint.
-The admin dashboard currently consumes **part** of the response. Below is exactly
-what needs to be added to complete the remaining 3 components.
+Build or update the admin analytics endpoint so it returns the complete response shape below.
+All fields marked **required** must always be present. Fields marked **optional** may be omitted
+if no data exists, but the frontend will fall back to mock data when they are absent so returning
+real zeros is always preferable to omitting the key.
 
 ---
 
-## Context — what already works
-
-The endpoint currently returns:
+## Response envelope
 
 ```json
 {
   "status": true,
-  "data": {
-    "kpis": {
-      "totalRevenue": number,
-      "revenueChange": number,
-      "activeAuctions": number,
-      "bidsToday": number,
-      "openDisputes": number,
-      "totalUsers": number
-    },
-    "topLots": [
-      {
-        "id": number,
-        "title": string,
-        "startingBid": number,
-        "currentBid": number,
-        "bidCount": number,
-        "margin": number,
-        "status": string,
-        "auctionId": number,
-        "auctionTitle": string
-      }
-    ],
-    "auctionPerformance": [
-      {
-        "id": number,
-        "title": string,
-        "revenue": number,
-        "lotsCount": number,
-        "soldCount": number,
-        "bidCount": number
-      }
-    ],
-    "actionsNeeded": {
-      "pendingAuctions": number,
-      "pendingLots": number,
-      "openDisputes": number
-    }
-  }
+  "data": { ... }
 }
 ```
 
-These fields are consumed and wired into the dashboard. Do not change their shape.
+All payload lives inside `data`. The `status` boolean indicates success.
 
 ---
 
-## What is missing — add these 3 keys to `data`
+## `data.kpis` — required
 
-### 1. `revenueBids` — powers the Revenue & Bids chart
+Summary KPI cards shown at the top of the dashboard.
 
-The chart has 4 period views: daily, weekly, monthly, yearly.
-Each period is an array of `{ label, revenue, bids }` where:
-- `label` is the display name for the X axis (e.g. "Mon", "Wk 1", "Jan", "2024")
-- `revenue` is total GHS revenue for that period bucket (integer or float)
-- `bids` is total number of bids placed in that bucket (integer)
+```json
+"kpis": {
+  "totalRevenue": 4821300,
+  "revenueChange": 12.4,
+  "activeAuctions": 3,
+  "bidsToday": 312,
+  "openDisputes": 5,
+  "totalUsers": 1840
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `totalRevenue` | `number` | Cumulative platform revenue (GHS) from all settled lots, all time |
+| `revenueChange` | `number` | Percentage change in revenue vs. the previous calendar month (positive = growth, negative = decline) |
+| `activeAuctions` | `number` | Auctions currently in `live` / `active` status right now |
+| `bidsToday` | `number` | Total bid events placed since midnight today (UTC) |
+| `openDisputes` | `number` | Disputes with status `open` or `awaiting_response` |
+| `totalUsers` | `number` | Total registered user accounts (all roles) |
+
+---
+
+## `data.topLots` — required
+
+The 5 highest-performing lots by `currentBid`, across all auctions, all time.
+
+```json
+"topLots": [
+  {
+    "id": 101,
+    "title": "Rolex Submariner Date (1985)",
+    "startingBid": 4000,
+    "currentBid": 6800,
+    "bidCount": 24,
+    "margin": 70.0,
+    "status": "sold",
+    "image": "https://cdn.example.com/lots/rolex.jpg",
+    "auctionId": 9,
+    "auctionTitle": "Luxury Goods – July Auction"
+  }
+]
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `number` | Lot ID |
+| `title` | `string` | Lot title |
+| `startingBid` | `number` | Starting bid (GHS) |
+| `currentBid` | `number` | Highest bid reached (GHS) |
+| `bidCount` | `number` | Total number of bids placed on this lot |
+| `margin` | `number` | `((currentBid - startingBid) / startingBid) * 100` — percentage above starting bid |
+| `status` | `string` | Lot status: `"active"`, `"sold"`, `"settled"`, etc. |
+| `image` | `string \| null` | Primary image URL — used as the thumbnail in the table |
+| `auctionId` | `number \| null` | ID of the auction this lot belongs to |
+| `auctionTitle` | `string \| null` | Title of that auction |
+
+> Return exactly **5** lots, sorted descending by `currentBid`.
+
+---
+
+## `data.auctionPerformance` — required
+
+List of recent/completed auctions and their performance metrics, for the performance breakdown card.
+
+```json
+"auctionPerformance": [
+  {
+    "id": 9,
+    "title": "Luxury Goods – July Auction",
+    "revenue": 187500,
+    "lotsCount": 18,
+    "soldCount": 14,
+    "bidCount": 312
+  }
+]
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `number` | Auction ID |
+| `title` | `string` | Auction title |
+| `revenue` | `number` | Total GHS revenue from settled lots in this auction |
+| `lotsCount` | `number` | Total lots assigned to this auction |
+| `soldCount` | `number` | Lots that reached a winning bid (settled/sold) |
+| `bidCount` | `number` | Total bid events placed across all lots in this auction |
+
+> Return up to **10** most recent auctions, sorted descending by `revenue`.
+
+---
+
+## `data.actionsNeeded` — required
+
+Counts of items that require admin attention. Drives the "Actions Needed" card.
+
+```json
+"actionsNeeded": {
+  "pendingAuctions": 2,
+  "pendingLots": 14,
+  "openDisputes": 5
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `pendingAuctions` | `number` | Auctions in `draft` or `pending_approval` status |
+| `pendingLots` | `number` | Lots with `reviewStatus = "submitted"` waiting for admin approval |
+| `openDisputes` | `number` | Open disputes requiring a response |
+
+---
+
+## `data.revenueBids` — optional
+
+Time-series data for the Revenue & Bids chart. The chart has 4 period tabs.
 
 ```json
 "revenueBids": {
@@ -113,16 +183,26 @@ Each period is an array of `{ label, revenue, bids }` where:
 }
 ```
 
-> **Note on counts**: daily = last 7 days (most recent last), weekly = last 8 weeks,
-> monthly = last 12 calendar months, yearly = last 5 years.
-> The array values above are illustrative — return real database aggregates.
+| Period | Array length | `label` format | Window |
+|---|---|---|---|
+| `daily` | 7 | Day abbreviation: `"Mon"` … `"Sun"` | Last 7 days, oldest first |
+| `weekly` | 8 | `"Wk N"` | Last 8 calendar weeks, oldest first |
+| `monthly` | 12 | Month abbreviation: `"Jan"` … `"Dec"` | Last 12 calendar months, oldest first |
+| `yearly` | 5 | Full year: `"2021"` | Last 5 years, oldest first |
+
+Each point:
+
+| Field | Type | Description |
+|---|---|---|
+| `label` | `string` | X-axis label |
+| `revenue` | `number` | Total GHS settled in that bucket |
+| `bids` | `number` | Total bid events placed in that bucket |
 
 ---
 
-### 2. `lotPipeline` — powers the Lot Pipeline funnel
+## `data.lotPipeline` — optional
 
-This shows how many lots are at each stage **this month** (calendar month),
-plus an all-time settled count for the footer.
+Funnel counts for the Lot Approval Pipeline card. Tracks how many lots progress through each stage **this calendar month**, plus an all-time settled count.
 
 ```json
 "lotPipeline": {
@@ -134,47 +214,47 @@ plus an all-time settled count for the footer.
 }
 ```
 
-| Field | Description |
-|---|---|
-| `submitted` | Lots submitted by vendors this month (any status, as long as they entered the pipeline) |
-| `approved` | Of those submitted, how many were approved |
-| `live` | Of those approved, how many went live (auction started) |
-| `settled` | Of those live, how many are settled/closed with a winner |
-| `settledAllTime` | Total settled lots across all time, all periods — shown in the footer label |
+| Field | Type | Description |
+|---|---|---|
+| `submitted` | `number` | Lots submitted by vendors this month |
+| `approved` | `number` | Of those, how many were approved by admins |
+| `live` | `number` | Of those approved, how many went live in an auction |
+| `settled` | `number` | Of those live, how many are now settled with a winner |
+| `settledAllTime` | `number` | Total settled lots across all time — shown in the footer |
 
-> All four pipeline stages must be <= the previous stage (submitted >= approved >= live >= settled).
+> Invariant: `submitted >= approved >= live >= settled`
 
 ---
 
-### 3. `topVendors` — powers the Top Vendors leaderboard
+## `data.topVendors` — optional
 
-Ranked by total revenue this month, top 4 vendors.
+Vendor leaderboard for the current calendar month, ranked by revenue.
 
 ```json
 "topVendors": [
   {
-    "id": 1,
+    "id": 3,
     "name": "Accra Luxury Traders",
     "lotsSettled": 42,
     "revenue": 187500,
     "trend": "up"
   },
   {
-    "id": 2,
+    "id": 7,
     "name": "TechHub Ghana Ltd.",
     "lotsSettled": 67,
     "revenue": 142300,
     "trend": "up"
   },
   {
-    "id": 3,
+    "id": 4,
     "name": "Abena Gold & Jewels",
     "lotsSettled": 29,
     "revenue": 98700,
     "trend": "down"
   },
   {
-    "id": 4,
+    "id": 2,
     "name": "Dansoman Electronics",
     "lotsSettled": 51,
     "revenue": 76200,
@@ -183,42 +263,75 @@ Ranked by total revenue this month, top 4 vendors.
 ]
 ```
 
-| Field | Description |
-|---|---|
-| `id` | Vendor/user ID |
-| `name` | Vendor display name |
-| `lotsSettled` | Number of lots settled this month |
-| `revenue` | Total GHS revenue from their settled lots this month |
-| `trend` | `"up"` if their revenue this month > last month, `"down"` otherwise |
+| Field | Type | Description |
+|---|---|---|
+| `id` | `number` | Vendor user ID |
+| `name` | `string` | Vendor display name |
+| `lotsSettled` | `number` | Lots settled by this vendor this month |
+| `revenue` | `number` | Total GHS revenue from their settled lots this month |
+| `trend` | `"up" \| "down"` | `"up"` if this month's revenue > last month's, `"down"` otherwise |
 
-> Return exactly 4 vendors, sorted descending by `revenue`.
+> Return up to **5** vendors, sorted descending by `revenue`. If fewer than 5 vendors have activity this month, return however many do — do not pad with zeros.
 
 ---
 
-## Summary — updated full response shape
+## Complete response shape (reference)
 
 ```json
 {
   "status": true,
   "data": {
-    "kpis": { ... },              // already exists — no changes
-    "topLots": [ ... ],           // already exists — no changes
-    "auctionPerformance": [ ... ],// already exists — no changes
-    "actionsNeeded": { ... },     // already exists — no changes
-    "revenueBids": {              // NEW
+    "kpis": {
+      "totalRevenue": number,
+      "revenueChange": number,
+      "activeAuctions": number,
+      "bidsToday": number,
+      "openDisputes": number,
+      "totalUsers": number
+    },
+    "topLots": [
+      {
+        "id": number,
+        "title": string,
+        "startingBid": number,
+        "currentBid": number,
+        "bidCount": number,
+        "margin": number,
+        "status": string,
+        "image": string | null,
+        "auctionId": number | null,
+        "auctionTitle": string | null
+      }
+    ],
+    "auctionPerformance": [
+      {
+        "id": number,
+        "title": string,
+        "revenue": number,
+        "lotsCount": number,
+        "soldCount": number,
+        "bidCount": number
+      }
+    ],
+    "actionsNeeded": {
+      "pendingAuctions": number,
+      "pendingLots": number,
+      "openDisputes": number
+    },
+    "revenueBids": {
       "daily":   [ { "label": string, "revenue": number, "bids": number } ],
       "weekly":  [ { "label": string, "revenue": number, "bids": number } ],
       "monthly": [ { "label": string, "revenue": number, "bids": number } ],
       "yearly":  [ { "label": string, "revenue": number, "bids": number } ]
     },
-    "lotPipeline": {              // NEW
+    "lotPipeline": {
       "submitted": number,
       "approved": number,
       "live": number,
       "settled": number,
       "settledAllTime": number
     },
-    "topVendors": [               // NEW
+    "topVendors": [
       {
         "id": number,
         "name": string,
@@ -233,11 +346,10 @@ Ranked by total revenue this month, top 4 vendors.
 
 ---
 
-## Unused fields already in the response (FYI)
+## Notes
 
-These are already returned but the frontend doesn't render them yet — no action needed on the backend:
-
-- `kpis.totalRevenue` — total platform revenue
-- `kpis.revenueChange` — percentage change vs last period
-- `kpis.totalUsers` — total registered users
-- `actionsNeeded.pendingAuctions` — auctions pending review
+- **Authentication**: endpoint requires a valid admin bearer token. Return `401` for missing/invalid tokens, `403` for non-admin roles.
+- **Performance**: this endpoint is polled every 5 minutes by the dashboard. Aggregate queries should be cached or pre-computed (e.g. materialized view or Redis cache with a 60-second TTL) — do not run raw heavy aggregates on every request.
+- **Currency**: all monetary values are in **GHS** (Ghanaian cedi), as plain numbers (no currency symbol or formatting).
+- **Timezone**: use **UTC** for all date bucketing unless a `tz` query param is supported.
+- **Empty states**: return `[]` for arrays with no data (not `null`). Return `0` for numeric counts with no data (not `null`).

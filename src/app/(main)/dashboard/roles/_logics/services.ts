@@ -13,36 +13,36 @@ export interface UpdateRolePayload {
 
 export const RoleServices = {
   FetchAll() {
-    return { endpoint: "/admin/roles" };
+    return { endpoint: "/api/admin/roles" };
   },
   FetchPermissions() {
-    return { endpoint: "/admin/roles/permissions" };
+    return { endpoint: "/api/admin/roles/permissions" };
   },
   FetchById(id: number) {
-    return { endpoint: `/admin/roles/${id}` };
+    return { endpoint: `/api/admin/roles/${id}` };
   },
   Create(payload: CreateRolePayload) {
-    return { endpoint: "/admin/roles", method: "POST" as const, body: payload };
+    return { endpoint: "/api/admin/roles", method: "POST" as const, body: payload };
   },
   Update(id: number, payload: UpdateRolePayload) {
-    return { endpoint: `/admin/roles/${id}`, method: "PUT" as const, body: payload };
+    return { endpoint: `/api/admin/roles/${id}`, method: "PUT" as const, body: payload };
   },
   Delete(id: number) {
-    return { endpoint: `/admin/roles/${id}`, method: "DELETE" as const };
+    return { endpoint: `/api/admin/roles/${id}`, method: "DELETE" as const };
   },
   FetchUserRoles(userId: number) {
-    return { endpoint: `/admin/users/${userId}/roles` };
+    return { endpoint: `/api/admin/users/${userId}/roles` };
   },
   AssignRole(userId: number, roleId: number) {
     return {
-      endpoint: `/admin/users/${userId}/roles`,
+      endpoint: `/api/admin/users/${userId}/roles`,
       method: "POST" as const,
       body: { roleId },
     };
   },
   RemoveRole(userId: number, roleId: number) {
     return {
-      endpoint: `/admin/users/${userId}/roles/${roleId}`,
+      endpoint: `/api/admin/users/${userId}/roles/${roleId}`,
       method: "DELETE" as const,
     };
   },

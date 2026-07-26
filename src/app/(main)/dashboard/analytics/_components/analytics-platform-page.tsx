@@ -1,0 +1,492 @@
+"use client";
+"use no memo";
+
+import * as React from "react";
+
+import { useQuery } from "@tanstack/react-query";
+import { ArrowDownRight, ArrowUpRight, RefreshCw } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { apiRequest } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
+
+import {
+  type AnalyticsPlatformData,
+  AnalyticsPlatformServices,
+  type AnalyticsRange,
+  type AnalyticsRealtimeData,
+} from "../_logics/services";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const RANGE_OPTIONS: { label: string; value: AnalyticsRange }[] = [
+  { label: "Last 7 days", value: "last-7-days" },
+  { label: "Last 4 weeks", value: "last-4-weeks" },
+  { label: "Last 3 months", value: "last-3-months" },
+  { label: "Year to date", value: "year-to-date" },
+];
+
+const RANGE_LABELS: Record<AnalyticsRange, string> = {
+  "last-7-days": "last 7 days",
+  "last-4-weeks": "last 4 weeks",
+  "last-3-months": "last 3 months",
+  "year-to-date": "year to date",
+};
+
+const KPI_DEFS = [
+  { key: "uniqueVisitors" as const, label: "Unique Visitors", isRate: false },
+  { key: "sessions" as const, label: "Sessions", isRate: false },
+  { key: "pageviews" as const, label: "Pageviews", isRate: false },
+  { key: "engagementRate" as const, label: "Engagement Rate", isRate: true },
+  { key: "conversionRate" as const, label: "Conversion Rate", isRate: true },
+];
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const qualityChartConfig = {
+  actualQuality: { color: "var(--chart-1)", label: "Actual quality" },
+  baselineQuality: { color: "var(--muted-foreground)", label: "Baseline quality" },
+} satisfies ChartConfig;
+
+const realtimeChartConfig = {
+  visitors: { color: "var(--chart-3)", label: "Visitors" },
+} satisfies ChartConfig;
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+
+function formatValue(n: number, isRate = false): string {
+  if (isRate) return `${n.toFixed(1)}%`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(Math.round(n));
+}
+
+function formatChange(n: number): string {
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n.toFixed(1)}%`;
+}
+
+function calcPrevious(value: number, change: number, isRate: boolean): string {
+  const prev = value / (1 + change / 100);
+  return formatValue(prev, isRate);
+}
+
+function formatXTick(dateStr: string, range: AnalyticsRange): string {
+  const d = new Date(dateStr);
+  if (range === "last-7-days") {
+    const h = d.getUTCHours();
+    return h === 0 ? DAYS[d.getUTCDay()] : `${h.toString().padStart(2, "0")}:00`;
+  }
+  if (range === "year-to-date") {
+    const startOfYear = Date.UTC(d.getUTCFullYear(), 0, 1);
+    const weekNo = Math.ceil((d.getTime() - startOfYear) / (7 * 24 * 3600 * 1000)) + 1;
+    return `Wk ${weekNo}`;
+  }
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
+function getChartInterval(range: AnalyticsRange): number {
+  if (range === "last-7-days") return 2;
+  if (range === "last-4-weeks") return 20;
+  if (range === "last-3-months") return 13;
+  return 3;
+}
+
+// ── Section: range tabs ────────────────────────────────────────────────────────
+
+function RangeTabs({ range, onChange }: { range: AnalyticsRange; onChange: (r: AnalyticsRange) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+      {RANGE_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={cn(
+            "rounded-md px-3 py-1.5 font-medium text-sm transition-colors",
+            range === opt.value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Section: realtime card ─────────────────────────────────────────────────────
+
+function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError: boolean }) {
+  const perMinute = data?.perMinute ?? 0;
+  const minuteSeries = data?.minuteSeries ?? [];
+
+  return (
+    <Card className="w-60 shrink-0">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 font-normal text-sm">
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-500 opacity-75" />
+            <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+          </span>
+          Live now
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {isError ? (
+          <p className="text-muted-foreground text-xs">Realtime data unavailable.</p>
+        ) : (
+          <>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl tabular-nums leading-none tracking-tight">{perMinute}</span>
+              <span className="text-muted-foreground text-sm">/ min</span>
+            </div>
+            {minuteSeries.length > 0 ? (
+              <ChartContainer config={realtimeChartConfig} className="h-10 w-full">
+                <BarChart data={minuteSeries} margin={{ bottom: 0, left: 0, right: 0, top: 0 }} barCategoryGap={2}>
+                  <XAxis dataKey="minute" hide />
+                  <YAxis hide />
+                  <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                  <Bar dataKey="visitors" fill="var(--color-visitors)" fillOpacity={0.7} radius={1} />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <Skeleton className="h-10 w-full" />
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Section: KPI cards ────────────────────────────────────────────────────────
+
+function KpiCards({
+  kpis,
+  isLoading,
+  range,
+}: {
+  kpis?: AnalyticsPlatformData["kpis"];
+  isLoading: boolean;
+  range: AnalyticsRange;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl bg-card shadow-xs ring-1 ring-foreground/10">
+      <div className="grid divide-y *:data-[slot=card]:rounded-none *:data-[slot=card]:ring-0 md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-5">
+        {KPI_DEFS.map(({ key, label, isRate }) => {
+          const entry = kpis?.[key];
+          const isPositive = (entry?.change ?? 0) > 0;
+          const isNegative = (entry?.change ?? 0) < 0;
+
+          return (
+            <Card key={key}>
+              <CardHeader>
+                <CardTitle className="font-normal text-sm">{label}</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {isLoading || !entry ? (
+                  <>
+                    <Skeleton className="h-7 w-24" />
+                    <Skeleton className="h-4 w-36" />
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="text-2xl leading-none tracking-tight">{formatValue(entry.value, isRate)}</div>
+                      {entry.change !== 0 && (
+                        <Badge
+                          className={cn(
+                            isPositive && "bg-green-500/10 text-green-700 dark:bg-green-500/15 dark:text-green-300",
+                            isNegative && "bg-destructive/10 text-destructive",
+                          )}
+                        >
+                          {isPositive ? <ArrowUpRight /> : <ArrowDownRight />}
+                          {formatChange(Math.abs(entry.change))}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                      <span>
+                        from <span className="text-foreground">{calcPrevious(entry.value, entry.change, isRate)}</span>
+                      </span>
+                      <span>•</span>
+                      <span>{RANGE_LABELS[range]}</span>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Section: traffic quality chart ───────────────────────────────────────────
+
+function TrafficQualityChart({
+  data,
+  range,
+  isLoading,
+}: {
+  data?: AnalyticsPlatformData["trafficQuality"];
+  range: AnalyticsRange;
+  isLoading: boolean;
+}) {
+  const interval = getChartInterval(range);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-normal">Traffic Quality</CardTitle>
+        <CardDescription>Actual engagement vs baseline · {RANGE_LABELS[range]}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading && <Skeleton className="h-64 w-full" />}
+        {!isLoading && !data?.length && (
+          <div className="flex h-64 items-center justify-center text-muted-foreground text-sm">
+            No data for this period.
+          </div>
+        )}
+        {!isLoading && !!data?.length && (
+          <ChartContainer config={qualityChartConfig} className="h-64 w-full">
+            <ComposedChart data={data} margin={{ bottom: 0, left: 0, right: 0, top: 4 }}>
+              <defs>
+                <linearGradient id="qualityFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-actualQuality)" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="var(--color-actualQuality)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="date"
+                axisLine={false}
+                interval={interval}
+                tickFormatter={(v: string) => formatXTick(v, range)}
+                tickLine={false}
+                tickMargin={12}
+              />
+              <YAxis
+                axisLine={false}
+                domain={["auto", "auto"]}
+                tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v}`}
+                tickLine={false}
+                tickMargin={10}
+                width={36}
+              />
+              <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent className="w-44" labelFormatter={() => "Traffic quality"} />}
+              />
+              <Area
+                dataKey="actualQuality"
+                dot={false}
+                activeDot={{ r: 4 }}
+                fill="url(#qualityFill)"
+                stroke="var(--color-actualQuality)"
+                strokeWidth={2.5}
+                type="linear"
+              />
+              <Line
+                dataKey="baselineQuality"
+                dot={false}
+                stroke="var(--color-baselineQuality)"
+                strokeDasharray="4 4"
+                strokeOpacity={0.65}
+                strokeWidth={1.75}
+                type="linear"
+              />
+            </ComposedChart>
+          </ChartContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Section: vendor performance table ────────────────────────────────────────
+
+function approvalRateClass(rate: number): string {
+  if (rate >= 80) return "text-green-600 dark:text-green-400";
+  if (rate >= 60) return "text-amber-600 dark:text-amber-400";
+  return "text-destructive";
+}
+
+function VendorStatusBadge({ status }: { status: "active" | "inactive" | "warning" }) {
+  if (status === "active") {
+    return (
+      <Badge
+        variant="outline"
+        className="h-5 border-green-500/30 bg-green-500/10 px-1.5 text-[10px] text-green-700 dark:text-green-400"
+      >
+        Active
+      </Badge>
+    );
+  }
+  if (status === "warning") {
+    return (
+      <Badge
+        variant="outline"
+        className="h-5 border-amber-500/30 bg-amber-500/10 px-1.5 text-[10px] text-amber-700 dark:text-amber-400"
+      >
+        Warning
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground">
+      Inactive
+    </Badge>
+  );
+}
+
+function VendorTable({
+  vendors,
+  isLoading,
+}: {
+  vendors?: AnalyticsPlatformData["vendorPerformance"];
+  isLoading: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-normal">Vendor Performance</CardTitle>
+        <CardDescription>All vendors with activity in the selected period, ranked by revenue</CardDescription>
+      </CardHeader>
+      <CardContent className="px-0">
+        {isLoading && (
+          <div className="flex flex-col gap-3 px-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: skeleton rows have no identity
+              <Skeleton key={i} className="h-5 w-full" />
+            ))}
+          </div>
+        )}
+        {!isLoading && !vendors?.length && (
+          <p className="py-10 text-center text-muted-foreground text-sm">No vendor activity for this period.</p>
+        )}
+        {!isLoading && !!vendors?.length && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-6 text-xs">Vendor</TableHead>
+                <TableHead className="text-right text-xs">Lots submitted</TableHead>
+                <TableHead className="text-right text-xs">Approval rate</TableHead>
+                <TableHead className="text-right text-xs">Avg final price</TableHead>
+                <TableHead className="text-right text-xs">Total revenue</TableHead>
+                <TableHead className="pr-6 text-xs">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {vendors.map((vendor) => (
+                <TableRow key={vendor.id}>
+                  <TableCell className="pl-6 font-medium text-sm">{vendor.name}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">{vendor.submitted}</TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-right font-medium text-sm tabular-nums",
+                      approvalRateClass(vendor.approvalRate),
+                    )}
+                  >
+                    {vendor.approvalRate.toFixed(1)}%
+                  </TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">
+                    GHS {vendor.avgFinalPrice.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right font-medium text-sm tabular-nums">
+                    GHS {vendor.totalRevenue.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="pr-6">
+                    <VendorStatusBadge status={vendor.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Section: error fallback ───────────────────────────────────────────────────
+
+function SectionError({ message, onRetry }: { message?: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-16 text-center">
+      <p className="text-muted-foreground text-sm">{message ?? "Failed to load analytics data."}</p>
+      <Button size="sm" variant="outline" onClick={onRetry}>
+        <RefreshCw className="size-3.5" />
+        Retry
+      </Button>
+    </div>
+  );
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+export function AnalyticsPlatformPage() {
+  const { data: session, status: sessionStatus } = useSession();
+  const token = session?.accessToken;
+
+  const [range, setRange] = React.useState<AnalyticsRange>("last-4-weeks");
+
+  const platformQuery = useQuery({
+    queryKey: ["admin-analytics-platform", range],
+    queryFn: () => {
+      const svc = AnalyticsPlatformServices.Fetch(range);
+      return apiRequest<{ data?: AnalyticsPlatformData; status?: boolean }>(svc.endpoint, token, {
+        params: svc.params,
+      });
+    },
+    enabled: sessionStatus === "authenticated",
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  // Show realtime error only after 3 consecutive failures (retry: 2 = 3 total attempts)
+  const realtimeQuery = useQuery({
+    queryKey: ["admin-analytics-realtime"],
+    queryFn: () => {
+      const svc = AnalyticsPlatformServices.FetchRealtime();
+      return apiRequest<{ data?: AnalyticsRealtimeData; status?: boolean }>(svc.endpoint, token);
+    },
+    enabled: sessionStatus === "authenticated",
+    refetchInterval: 30_000,
+    retry: 2,
+  });
+
+  const platformData = platformQuery.data?.data;
+  const realtimeData = realtimeQuery.data?.data;
+  const isLoading = platformQuery.isLoading;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <RangeTabs range={range} onChange={setRange} />
+        <RealtimeCard data={realtimeData} isError={realtimeQuery.isError} />
+      </div>
+
+      {platformQuery.isError ? (
+        <SectionError onRetry={() => void platformQuery.refetch()} />
+      ) : (
+        <>
+          <KpiCards kpis={platformData?.kpis} isLoading={isLoading} range={range} />
+          <TrafficQualityChart data={platformData?.trafficQuality} isLoading={isLoading} range={range} />
+          <VendorTable vendors={platformData?.vendorPerformance} isLoading={isLoading} />
+        </>
+      )}
+    </div>
+  );
+}

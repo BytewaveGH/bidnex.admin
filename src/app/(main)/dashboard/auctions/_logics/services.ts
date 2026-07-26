@@ -27,29 +27,29 @@ export interface ScheduleAuctionBody {
 export const AuctionServices = {
   FetchAll(params: FetchAuctionsParams) {
     return {
-      endpoint: "/admin/auctions",
+      endpoint: "/api/admin/auctions",
       params: params as unknown as Record<string, string | number | undefined>,
     };
   },
   CreateAuction(body: CreateAuctionBody) {
-    return { endpoint: "/admin/auctions", body };
+    return { endpoint: "/api/admin/auctions", body };
   },
   AssignLot(auctionId: number, lotId: number, body: AssignLotBody) {
-    return { endpoint: `/admin/auctions/${auctionId}/lots/${lotId}`, body };
+    return { endpoint: `/api/admin/auctions/${auctionId}/lots/${lotId}`, body };
   },
   ScheduleAuction(id: number, body: ScheduleAuctionBody) {
-    return { endpoint: `/admin/auctions/${id}/schedule`, body };
+    return { endpoint: `/api/admin/auctions/${id}/schedule`, body };
   },
   ApproveAuction(id: number) {
-    return { endpoint: `/admin/auctions/${id}/approve` };
+    return { endpoint: `/api/admin/auctions/${id}/approve` };
   },
   CancelAuction(id: number) {
-    return { endpoint: `/admin/auctions/${id}/cancel` };
+    return { endpoint: `/api/admin/auctions/${id}/cancel` };
   },
   FetchOne(id: number) {
-    return { endpoint: `/admin/auctions/${id}` };
+    return { endpoint: `/api/admin/auctions/${id}` };
   },
   RemoveLot(auctionId: number, lotId: number) {
-    return { endpoint: `/admin/auctions/${auctionId}/lots/${lotId}` };
+    return { endpoint: `/api/admin/auctions/${auctionId}/lots/${lotId}` };
   },
 };
