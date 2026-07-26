@@ -39,7 +39,7 @@ interface UserStatsResponse {
 function useUserStats(token?: string, enabled?: boolean) {
   return useQuery({
     queryKey: ["user-stats"],
-    queryFn: () => apiRequest<UserStatsResponse>("/admin/users/stats", token),
+    queryFn: () => apiRequest<UserStatsResponse>("/api/admin/users/stats", token),
     enabled: !!enabled,
     staleTime: 60_000,
   });

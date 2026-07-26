@@ -83,7 +83,7 @@ export default function Page() {
 
   const { data: statsRes, isLoading: statsLoading } = useQuery({
     queryKey: ["auction-stats"],
-    queryFn: () => apiRequest<AuctionStatsResponse>("/admin/auctions/stats", token),
+    queryFn: () => apiRequest<AuctionStatsResponse>("/api/admin/auctions/stats", token),
     enabled: sessionStatus === "authenticated",
     staleTime: 60_000,
   });

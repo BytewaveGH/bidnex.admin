@@ -91,7 +91,7 @@ function UserRoles({ user, token }: { user: IAdminUser; token: string | undefine
   // Fetch all roles for the picker (only when popover open)
   const { data: allRolesRaw } = useQuery({
     queryKey: ["admin-roles"],
-    queryFn: () => apiRequest("/admin/roles", token),
+    queryFn: () => apiRequest("/api/admin/roles", token),
     enabled: !!token && assignOpen,
     staleTime: 60_000,
   });
