@@ -20,7 +20,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
         if (apiUrl) {
           try {
-            const res = await fetch(`${apiUrl}/auth/admin-login`, {
+            const res = await fetch(`${apiUrl}/api/auth/admin-login`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
