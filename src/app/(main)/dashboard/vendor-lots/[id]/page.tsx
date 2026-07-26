@@ -23,7 +23,7 @@ export default function Page() {
 
   const { data: res, isLoading } = useQuery({
     queryKey: ["admin-lot", id],
-    queryFn: () => apiRequest<ApiLotResponse>(`/admin/lots/${id}`, token),
+    queryFn: () => apiRequest<ApiLotResponse>(`/api/admin/lots/${id}`, token),
     enabled: sessionStatus === "authenticated",
   });
 
