@@ -8,19 +8,19 @@ export interface FetchDisputesParams {
 export const DisputeServices = {
   FetchAll(params: FetchDisputesParams) {
     return {
-      endpoint: "/admin/disputes",
+      endpoint: "/api/admin/disputes",
       params: params as unknown as Record<string, string | number | undefined>,
     };
   },
   FetchStats() {
-    return { endpoint: "/admin/disputes/stats" };
+    return { endpoint: "/api/admin/disputes/stats" };
   },
   FetchOne(id: number | string) {
-    return { endpoint: `/admin/disputes/${id}` };
+    return { endpoint: `/api/admin/disputes/${id}` };
   },
   PostMessage(id: number | string) {
     return {
-      endpoint: `/admin/disputes/${id}/messages`,
+      endpoint: `/api/admin/disputes/${id}/messages`,
       method: "POST" as const,
     };
   },

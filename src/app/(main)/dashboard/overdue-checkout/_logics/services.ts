@@ -7,13 +7,13 @@ export interface FetchOverdueLotsParams {
 export const OverdueCheckoutServices = {
   FetchAll(params: FetchOverdueLotsParams) {
     return {
-      endpoint: "/admin/lots/overdue-checkout",
+      endpoint: "/api/admin/lots/overdue-checkout",
       params: params as unknown as Record<string, string | number | undefined>,
     };
   },
   RelistLot(id: number) {
     return {
-      endpoint: `/admin/lots/${id}/relist`,
+      endpoint: `/api/admin/lots/${id}/relist`,
       method: "POST" as const,
     };
   },
