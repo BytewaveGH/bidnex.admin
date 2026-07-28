@@ -26,4 +26,7 @@ export const UserAdminServices = {
   CreditWallet(id: number, payload: WalletCreditPayload) {
     return { endpoint: `/api/admin/users/${id}/wallet/credit`, method: "POST" as const, body: payload };
   },
+  FetchOne(id: number) {
+    return { endpoint: `/api/admin/users/${id}` };
+  },
 };

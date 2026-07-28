@@ -5,7 +5,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, GripVertical, Search, Star, Trash2, Video } from "lucide-react";
+import { Check, Eye, GripVertical, Package, Search, Star, Trash2, Video } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -15,12 +15,15 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
+import type { IAdminUser } from "../../../users/_components/data";
+import { UserAdminServices } from "../../../users/_logics/services";
 import type { VendorLot } from "../../../vendor-lots/_components/vendor-lots-data";
 import { VendorLotServices } from "../../../vendor-lots/_logics/services";
 import { AuctionServices } from "../../_logics/services";
@@ -258,6 +261,201 @@ function DetailsStep({
   );
 }
 
+// ─── Lot Preview Sheet ───────────────────────────────────────────────────────
+
+function LotPreviewSheet({
+  lot,
+  isAdded,
+  onClose,
+  onAdd,
+}: {
+  lot: VendorLot | null;
+  isAdded: boolean;
+  onClose: () => void;
+  onAdd: (lot: VendorLot) => void;
+}) {
+  const [activeImage, setActiveImage] = React.useState(0);
+  const { data: session, status: sessionStatus } = useSession();
+  const token = session?.accessToken;
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on lot change only
+  React.useEffect(() => {
+    setActiveImage(0);
+  }, [lot?.id]);
+
+  const { data: vendorRes, isLoading: vendorLoading } = useQuery({
+    queryKey: ["vendor-preview", lot?.vendorId],
+    queryFn: () => {
+      const svc = UserAdminServices.FetchOne(lot!.vendorId);
+      return apiRequest<{ data?: IAdminUser; status?: boolean }>(svc.endpoint, token);
+    },
+    enabled: sessionStatus === "authenticated" && !!lot?.vendorId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const vendor = vendorRes?.data;
+
+  const images = lot?.images?.filter((m) => m.mediaType !== "video") ?? [];
+  const activeUrl = images[activeImage]?.url ?? lot?.primaryImage ?? null;
+
+  if (!lot) return null;
+
+  return (
+    <Sheet open={!!lot} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-lg">
+        <SheetHeader className="px-6 pt-6 pb-4">
+          <SheetTitle className="pr-6 text-base leading-snug">{lot.title}</SheetTitle>
+        </SheetHeader>
+
+        <div className="flex flex-col gap-5 px-6 pb-8">
+          {/* Image gallery */}
+          <div className="flex flex-col gap-2">
+            <div className="relative aspect-video w-full overflow-hidden rounded-xl border bg-muted">
+              {activeUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={activeUrl} alt={lot.title} className="size-full object-contain" />
+              ) : (
+                <div className="flex size-full items-center justify-center">
+                  <Package className="size-10 text-muted-foreground/40" />
+                </div>
+              )}
+            </div>
+            {images.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {images.map((img, i) => (
+                  <button
+                    key={img.url}
+                    type="button"
+                    onClick={() => setActiveImage(i)}
+                    className={cn(
+                      "size-14 shrink-0 overflow-hidden rounded-md border object-cover transition-all",
+                      i === activeImage ? "ring-2 ring-primary ring-offset-1" : "opacity-60 hover:opacity-100",
+                    )}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img.url} alt="" className="size-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Pricing */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "Starting Bid", value: `GHS ${lot.startingBid.toFixed(2)}` },
+              { label: "Reserve Price", value: lot.reservePrice ? `GHS ${lot.reservePrice.toFixed(2)}` : "—" },
+              { label: "Buy Now Price", value: lot.buyNowPrice ? `GHS ${lot.buyNowPrice.toFixed(2)}` : "—" },
+              { label: "Bid Increment", value: `GHS ${lot.bidIncrement.toFixed(2)}` },
+            ].map((item) => (
+              <div key={item.label} className="flex flex-col gap-0.5 rounded-lg bg-muted/50 p-3">
+                <span className="text-muted-foreground text-xs">{item.label}</span>
+                <span className="font-medium text-sm tabular-nums">{item.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <Separator />
+
+          {/* Vendor */}
+          <div className="flex flex-col gap-2">
+            <p className="font-medium text-sm">Vendor</p>
+            {vendorLoading ? (
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-52" />
+              </div>
+            ) : vendor ? (
+              <div className="flex flex-col gap-2 rounded-lg bg-muted/50 p-3 text-sm">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Name</span>
+                  <span className="font-medium">{vendor.username}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="font-medium">{vendor.email}</span>
+                </div>
+                {vendor.phone && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted-foreground">Phone</span>
+                    <span className="font-medium">{vendor.phone}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Status</span>
+                  <span
+                    className={cn(
+                      "font-medium capitalize",
+                      vendor.status === "active" ? "text-emerald-600 dark:text-emerald-400" : "text-destructive",
+                    )}
+                  >
+                    {vendor.status}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Verified</span>
+                  <span className="font-medium">{vendor.isVerified ? "Yes" : "No"}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">Vendor #{lot?.vendorId}</p>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Meta */}
+          <div className="flex flex-col gap-2 text-sm">
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Category</span>
+              <span className="font-medium">{lot.category.name}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Condition</span>
+              <span className="font-medium capitalize">{lot.condition}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">SKU</span>
+              <span className="font-mono text-xs">{lot.sku || "—"}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Pickup</span>
+              <span className="font-medium">{lot.pickupAvailable ? "Available" : "Not available"}</span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">Shipping</span>
+              <span className="font-medium">{lot.shippingAvailable ? "Available" : "Not available"}</span>
+            </div>
+          </div>
+
+          {/* Description */}
+          {lot.description && (
+            <>
+              <Separator />
+              <div className="flex flex-col gap-1.5">
+                <p className="font-medium text-sm">Description</p>
+                <p className="whitespace-pre-line text-muted-foreground text-sm leading-relaxed">{lot.description}</p>
+              </div>
+            </>
+          )}
+
+          {/* Add button */}
+          <Button
+            className="mt-2 w-full"
+            disabled={isAdded}
+            onClick={() => {
+              onAdd(lot);
+              onClose();
+            }}
+          >
+            {isAdded ? "Already added" : "Add to auction"}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ─── Step 2: Add Lots ────────────────────────────────────────────────────────
 
 function LotsStep({
@@ -277,6 +475,7 @@ function LotsStep({
 }) {
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
+  const [previewLot, setPreviewLot] = React.useState<VendorLot | null>(null);
 
   const { data: session, status: sessionStatus } = useSession();
   const token = session?.accessToken;
@@ -349,9 +548,19 @@ function LotsStep({
                 {lot.category.name} · GHS {lot.startingBid.toFixed(2)}
               </p>
             </div>
-            <Button size="sm" variant="outline" className="h-7 shrink-0" onClick={() => onAdd(lot)}>
-              Add
-            </Button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7 text-muted-foreground hover:text-foreground"
+                onClick={() => setPreviewLot(lot)}
+              >
+                <Eye className="size-3.5" />
+              </Button>
+              <Button size="sm" variant="outline" className="h-7" onClick={() => onAdd(lot)}>
+                Add
+              </Button>
+            </div>
           </div>
         ))}
       </div>
@@ -360,6 +569,15 @@ function LotsStep({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_400px]">
+      <LotPreviewSheet
+        lot={previewLot}
+        isAdded={previewLot ? addedIds.has(previewLot.id) : false}
+        onClose={() => setPreviewLot(null)}
+        onAdd={(lot) => {
+          onAdd(lot);
+          setPreviewLot(null);
+        }}
+      />
       {/* Available lots */}
       <Card>
         <CardHeader>
