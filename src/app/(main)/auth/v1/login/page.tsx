@@ -1,7 +1,9 @@
-import { Gem } from "lucide-react";
+import Image from "next/image";
 
 import { APP_CONFIG } from "@/config/app-config";
 
+import adminImage from "../../../../../../media/adminImage.jpeg";
+import logoImage from "../../../../../../media/logo.png";
 import { LoginForm } from "../../_components/login-form";
 
 export default function LoginV1() {
@@ -9,18 +11,13 @@ export default function LoginV1() {
     <div className="flex h-dvh">
       {/* Photo panel */}
       <div className="relative hidden overflow-hidden lg:block lg:w-1/3">
-        {/* biome-ignore lint/performance/noImgElement: decorative background */}
-        <img
-          src="https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=900&q=80&fit=crop"
-          alt=""
-          className="absolute inset-0 size-full object-cover"
-        />
+        <Image src={adminImage} alt="" fill className="object-cover" priority />
         {/* Dark overlay for text contrast */}
         <div className="absolute inset-0 bg-black/55" />
         {/* Content */}
         <div className="relative flex h-full flex-col items-center justify-center p-12 text-center">
           <div className="space-y-6">
-            <Gem className="mx-auto size-12 text-white" />
+            <Image src={logoImage} alt={APP_CONFIG.name} width={64} height={64} className="mx-auto invert" />
             <div className="space-y-2">
               <h1 className="font-light text-5xl text-white">{APP_CONFIG.name}</h1>
               <p className="text-white/70 text-xl">Admin Portal</p>

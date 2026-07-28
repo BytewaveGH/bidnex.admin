@@ -69,6 +69,19 @@ export interface RealtimeBidWar {
   bidCount: number;
 }
 
+export interface RealtimeHistoryPoint {
+  label: string;
+  activeBidders: number;
+  bidsPerMinute: number;
+  velocity: number;
+}
+
+export interface RealtimeHistory {
+  daily: RealtimeHistoryPoint[];
+  weekly: RealtimeHistoryPoint[];
+  monthly: RealtimeHistoryPoint[];
+}
+
 export interface AnalyticsRealtimeData {
   onlineVisitors: number;
   perMinute: number;
@@ -79,6 +92,7 @@ export interface AnalyticsRealtimeData {
   hottestLot: RealtimeHottestLot | null;
   endingSoon: { count: number; lots: RealtimeEndingSoonLot[] };
   bidWars: RealtimeBidWar[];
+  history: RealtimeHistory;
 }
 
 export const AnalyticsPlatformServices = {

@@ -3,11 +3,11 @@ import packageJson from "../../package.json";
 const currentYear = new Date().getFullYear();
 
 export const APP_CONFIG = {
-  name: "Gems Bid",
+  name: "Bidchale",
   version: packageJson.version,
-  copyright: `© ${currentYear}, Gems Bid.`,
+  copyright: `© ${currentYear}, Bidchale.`,
   meta: {
-    title: "Gems Bid Admin",
-    description: "Gems Bid — Admin panel for managing auctions, lots, vendors, and bids.",
+    title: "Bidchale Admin",
+    description: "Bidchale — Admin panel for managing auctions, lots, vendors, and bids.",
   },
 };
