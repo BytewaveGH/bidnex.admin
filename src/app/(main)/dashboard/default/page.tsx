@@ -1,5 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { AnalyticsPlatformPage } from "../analytics/_components/analytics-platform-page";
 import { AnalyticsOperations } from "./_components/analytics-operations";
 import { Overview } from "./_components/overview";
 
@@ -17,6 +18,7 @@ export default function Page() {
         </TabsContent>
 
         <TabsContent value="analytics" className="flex flex-col gap-8">
+          <AnalyticsPlatformPage />
           <AnalyticsOperations />
         </TabsContent>
       </Tabs>

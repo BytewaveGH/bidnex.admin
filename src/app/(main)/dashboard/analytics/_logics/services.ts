@@ -40,10 +40,45 @@ export interface RealtimeMinutePoint {
   visitors: number;
 }
 
+export interface RealtimeVelocity {
+  trend: "up" | "down";
+  changePercent: number;
+  last5Min: number;
+  prior5Min: number;
+}
+
+export interface RealtimeHottestLot {
+  id: number;
+  title: string;
+  currentBid: number;
+  bidCount: number;
+}
+
+export interface RealtimeEndingSoonLot {
+  id: number;
+  title: string;
+  bidEndTime: string;
+  currentBid: number;
+}
+
+export interface RealtimeBidWar {
+  id: number;
+  title: string;
+  currentBid: number;
+  distinctBidders: number;
+  bidCount: number;
+}
+
 export interface AnalyticsRealtimeData {
+  onlineVisitors: number;
   perMinute: number;
   minuteSeries: RealtimeMinutePoint[];
   byCountry: unknown[];
+  activeBidders: number;
+  velocity: RealtimeVelocity;
+  hottestLot: RealtimeHottestLot | null;
+  endingSoon: { count: number; lots: RealtimeEndingSoonLot[] };
+  bidWars: RealtimeBidWar[];
 }
 
 export const AnalyticsPlatformServices = {
