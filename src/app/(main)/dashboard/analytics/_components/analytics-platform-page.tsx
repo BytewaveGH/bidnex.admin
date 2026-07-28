@@ -4,7 +4,7 @@
 import * as React from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowUpRight, RefreshCw } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Flame, RefreshCw, Swords, Timer, TrendingDown, TrendingUp } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
 
@@ -22,6 +22,8 @@ import {
   AnalyticsPlatformServices,
   type AnalyticsRange,
   type AnalyticsRealtimeData,
+  type RealtimeBidWar,
+  type RealtimeEndingSoonLot,
 } from "../_logics/services";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -124,14 +126,70 @@ function RangeTabs({ range, onChange }: { range: AnalyticsRange; onChange: (r: A
   );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatTimeLeft(bidEndTime: string): string {
+  const diffMs = new Date(bidEndTime).getTime() - Date.now();
+  if (diffMs <= 0) return "Ended";
+  const totalSec = Math.floor(diffMs / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}m ${s.toString().padStart(2, "0")}s`;
+}
+
+// ── Section: ending soon row ──────────────────────────────────────────────────
+
+function EndingSoonRow({ lot }: { lot: RealtimeEndingSoonLot }) {
+  const [timeLeft, setTimeLeft] = React.useState(() => formatTimeLeft(lot.bidEndTime));
+
+  React.useEffect(() => {
+    const id = setInterval(() => setTimeLeft(formatTimeLeft(lot.bidEndTime)), 1000);
+    return () => clearInterval(id);
+  }, [lot.bidEndTime]);
+
+  return (
+    <div className="flex items-center justify-between gap-2 py-1">
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate text-sm">{lot.title}</span>
+        <span className="font-medium text-amber-600 text-xs tabular-nums dark:text-amber-400">{timeLeft}</span>
+      </div>
+      <span className="shrink-0 text-muted-foreground text-xs tabular-nums">GHS {lot.currentBid.toLocaleString()}</span>
+    </div>
+  );
+}
+
+// ── Section: bid war row ──────────────────────────────────────────────────────
+
+function BidWarRow({ war }: { war: RealtimeBidWar }) {
+  return (
+    <div className="flex items-center justify-between gap-2 py-1">
+      <span className="min-w-0 truncate text-sm">{war.title}</span>
+      <div className="flex shrink-0 items-center gap-3 text-muted-foreground text-xs tabular-nums">
+        <span>GHS {war.currentBid.toLocaleString()}</span>
+        <span>{war.distinctBidders} bidders</span>
+        <span>{war.bidCount} bids</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Section: realtime card ─────────────────────────────────────────────────────
 
 function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError: boolean }) {
+  const onlineVisitors = data?.onlineVisitors ?? 0;
   const perMinute = data?.perMinute ?? 0;
   const minuteSeries = data?.minuteSeries ?? [];
+  const activeBidders = data?.activeBidders ?? 0;
+  const velocity = data?.velocity;
+  const hottestLot = data?.hottestLot ?? null;
+  const endingSoon = data?.endingSoon;
+  const bidWars = data?.bidWars ?? [];
+
+  const VelocityIcon = velocity?.trend === "up" ? TrendingUp : TrendingDown;
+  const velocityColor = velocity?.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : "text-destructive";
 
   return (
-    <Card className="w-60 shrink-0">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 font-normal text-sm">
           <span className="relative flex size-2">
@@ -141,17 +199,48 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
           Live now
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      <CardContent className="flex flex-col gap-4">
         {isError ? (
           <p className="text-muted-foreground text-xs">Realtime data unavailable.</p>
         ) : (
           <>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl tabular-nums leading-none tracking-tight">{perMinute}</span>
-              <span className="text-muted-foreground text-sm">/ min</span>
+            {/* Top metrics row */}
+            <div className="flex flex-wrap gap-6">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-xs">Online now</span>
+                <span className="font-semibold text-2xl tabular-nums leading-none">{onlineVisitors}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-xs">Visitors / min</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-semibold text-2xl tabular-nums leading-none">{perMinute}</span>
+                  <span className="text-muted-foreground text-sm">/ min</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-xs">Active bidders</span>
+                <span className="font-semibold text-2xl tabular-nums leading-none">{activeBidders}</span>
+              </div>
+              {velocity && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-muted-foreground text-xs">Velocity (5 min)</span>
+                  <div className={cn("flex items-center gap-1 font-semibold text-2xl leading-none", velocityColor)}>
+                    <VelocityIcon className="size-5" />
+                    <span className="tabular-nums">
+                      {velocity.changePercent > 0 ? "+" : ""}
+                      {velocity.changePercent.toFixed(1)}%
+                    </span>
+                  </div>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {velocity.last5Min} vs {velocity.prior5Min} prior
+                  </span>
+                </div>
+              )}
             </div>
+
+            {/* Sparkline */}
             {minuteSeries.length > 0 ? (
-              <ChartContainer config={realtimeChartConfig} className="h-10 w-full">
+              <ChartContainer config={realtimeChartConfig} className="h-12 w-full">
                 <BarChart data={minuteSeries} margin={{ bottom: 0, left: 0, right: 0, top: 0 }} barCategoryGap={2}>
                   <XAxis dataKey="minute" hide />
                   <YAxis hide />
@@ -160,8 +249,58 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
                 </BarChart>
               </ChartContainer>
             ) : (
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-12 w-full" />
             )}
+
+            {/* Hottest lot + ending soon */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {hottestLot && (
+                <div className="flex flex-col gap-1 rounded-lg bg-muted/40 p-3">
+                  <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                    <Flame className="size-3 text-orange-500" />
+                    Hottest lot
+                  </div>
+                  <p className="truncate font-medium text-sm">{hottestLot.title}</p>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted-foreground tabular-nums">
+                      GHS {hottestLot.currentBid.toLocaleString()}
+                    </span>
+                    <span className="text-muted-foreground tabular-nums">{hottestLot.bidCount} bids</span>
+                  </div>
+                </div>
+              )}
+
+              {endingSoon && endingSoon.count > 0 && (
+                <div className="flex flex-col gap-1 rounded-lg bg-muted/40 p-3">
+                  <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                    <Timer className="size-3 text-amber-500" />
+                    Ending soon · {endingSoon.count}
+                  </div>
+                  <div className="divide-y">
+                    {endingSoon.lots.map((lot) => (
+                      <EndingSoonRow key={lot.id} lot={lot} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bid wars */}
+            <div className="flex flex-col gap-2 rounded-lg bg-muted/40 p-3">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                <Swords className="size-3 text-violet-500" />
+                Bid wars · {bidWars.length}
+              </div>
+              {bidWars.length === 0 ? (
+                <p className="text-muted-foreground text-xs">No active bid wars right now.</p>
+              ) : (
+                <div className="divide-y">
+                  {bidWars.map((war) => (
+                    <BidWarRow key={war.id} war={war} />
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         )}
       </CardContent>
@@ -473,10 +612,8 @@ export function AnalyticsPlatformPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <RangeTabs range={range} onChange={setRange} />
-        <RealtimeCard data={realtimeData} isError={realtimeQuery.isError} />
-      </div>
+      <RangeTabs range={range} onChange={setRange} />
+      <RealtimeCard data={realtimeData} isError={realtimeQuery.isError} />
 
       {platformQuery.isError ? (
         <SectionError onRetry={() => void platformQuery.refetch()} />
