@@ -338,7 +338,7 @@ function RevenueByCategorySection({ data, isLoading }: { data?: RevenueCategoryI
 type BidPeriod = "daily" | "monthly" | "weekly";
 
 function AvgBidTrendSection({ data, isLoading }: { data?: OperationsData["avgBidTrend"]; isLoading: boolean }) {
-  const [period, setPeriod] = React.useState<BidPeriod>("monthly");
+  const [period, setPeriod] = React.useState<BidPeriod>("daily");
   const chartData = data?.[period] ?? [];
 
   return (
@@ -415,7 +415,7 @@ function AvgBidTrendSection({ data, isLoading }: { data?: OperationsData["avgBid
 // ── Section: bidder activity ───────────────────────────────────────────────────
 
 function BidderActivitySection({ data, isLoading }: { data?: OperationsData["bidderActivity"]; isLoading: boolean }) {
-  const [period, setPeriod] = React.useState<"monthly" | "weekly">("monthly");
+  const [period, setPeriod] = React.useState<"monthly" | "weekly">("weekly");
   const chartData = data?.[period] ?? [];
   const description =
     period === "monthly" ? "Monthly new vs returning — last 12 months" : "Weekly new vs returning — last 8 weeks";

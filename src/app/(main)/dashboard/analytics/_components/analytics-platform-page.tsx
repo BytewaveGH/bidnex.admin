@@ -11,7 +11,14 @@ import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, ReferenceLine,
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiRequest } from "@/lib/api-client";
@@ -24,6 +31,7 @@ import {
   type AnalyticsRealtimeData,
   type RealtimeBidWar,
   type RealtimeEndingSoonLot,
+  type RealtimeHistoryPoint,
 } from "../_logics/services";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -61,6 +69,19 @@ const qualityChartConfig = {
 const realtimeChartConfig = {
   visitors: { color: "var(--chart-3)", label: "Visitors" },
 } satisfies ChartConfig;
+
+const historyChartConfig = {
+  activeBidders: { color: "var(--chart-1)", label: "Active Bidders" },
+  bidsPerMinute: { color: "var(--chart-2)", label: "Bids / min" },
+} satisfies ChartConfig;
+
+type HistoryPeriod = "daily" | "weekly" | "monthly";
+
+const HISTORY_PERIOD_LABELS: Record<HistoryPeriod, string> = {
+  daily: "Last 24 hours",
+  weekly: "Last 7 days",
+  monthly: "Last 30 days",
+};
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -128,6 +149,15 @@ function RangeTabs({ range, onChange }: { range: AnalyticsRange; onChange: (r: A
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+function formatHistoryLabel(label: string, period: HistoryPeriod): string {
+  const d = new Date(label);
+  if (period === "daily") {
+    return `${d.getUTCHours().toString().padStart(2, "0")}:00`;
+  }
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
 function formatTimeLeft(bidEndTime: string): string {
   const diffMs = new Date(bidEndTime).getTime() - Date.now();
   if (diffMs <= 0) return "Ended";
@@ -184,6 +214,9 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
   const hottestLot = data?.hottestLot ?? null;
   const endingSoon = data?.endingSoon;
   const bidWars = data?.bidWars ?? [];
+  const history = data?.history;
+  const [historyPeriod, setHistoryPeriod] = React.useState<HistoryPeriod>("daily");
+  const historyData: RealtimeHistoryPoint[] = history?.[historyPeriod] ?? [];
 
   const VelocityIcon = velocity?.trend === "up" ? TrendingUp : TrendingDown;
   const velocityColor = velocity?.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : "text-destructive";
@@ -299,6 +332,84 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
                     <BidWarRow key={war.id} war={war} />
                   ))}
                 </div>
+              )}
+            </div>
+
+            {/* History chart */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium text-sm">Activity history</p>
+                <div className="flex rounded-md bg-muted p-0.5">
+                  {(["daily", "weekly", "monthly"] as HistoryPeriod[]).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setHistoryPeriod(p)}
+                      className={cn(
+                        "rounded px-2.5 py-0.5 text-xs transition-colors capitalize",
+                        historyPeriod === p
+                          ? "bg-background font-medium text-foreground shadow-xs"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {HISTORY_PERIOD_LABELS[p].split(" ").slice(1).join(" ")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-muted-foreground text-xs">{HISTORY_PERIOD_LABELS[historyPeriod]}</p>
+              {historyData.length === 0 ? (
+                <Skeleton className="h-48 w-full" />
+              ) : (
+                <ChartContainer className="h-48 w-full" config={historyChartConfig}>
+                  <ComposedChart data={historyData} margin={{ left: 0, right: 0 }}>
+                    <defs>
+                      <linearGradient id="fillActiveBidders" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      axisLine={false}
+                      dataKey="label"
+                      interval="preserveStartEnd"
+                      tickLine={false}
+                      tickMargin={8}
+                      tickFormatter={(v: string) => formatHistoryLabel(v, historyPeriod)}
+                    />
+                    <YAxis axisLine={false} tickLine={false} tickMargin={8} width={28} yAxisId="bidders" />
+                    <YAxis
+                      axisLine={false}
+                      orientation="right"
+                      tickLine={false}
+                      tickMargin={8}
+                      width={32}
+                      yAxisId="rate"
+                      tickFormatter={(v: number) => v.toFixed(1)}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Area
+                      dataKey="activeBidders"
+                      dot={false}
+                      fill="url(#fillActiveBidders)"
+                      stroke="var(--chart-1)"
+                      strokeWidth={1.5}
+                      type="monotone"
+                      yAxisId="bidders"
+                    />
+                    <Line
+                      dataKey="bidsPerMinute"
+                      dot={false}
+                      stroke="var(--chart-2)"
+                      strokeDasharray="4 3"
+                      strokeWidth={1.5}
+                      type="monotone"
+                      yAxisId="rate"
+                    />
+                  </ComposedChart>
+                </ChartContainer>
               )}
             </div>
           </>
