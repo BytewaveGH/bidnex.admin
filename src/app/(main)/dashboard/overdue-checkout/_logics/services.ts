@@ -14,7 +14,7 @@ export const OverdueCheckoutServices = {
   RelistLot(id: number) {
     return {
       endpoint: `/admin/lots/${id}/relist`,
-      method: "POST" as const,
+      method: "PUT" as const,
     };
   },
 };

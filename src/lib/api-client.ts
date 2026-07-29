@@ -15,7 +15,8 @@ export async function apiRequest<T = unknown>(
 ): Promise<T> {
   const { params, body, headers: extraHeaders, ...rest } = options;
 
-  let url = `${BASE_URL}${endpoint}`;
+  const path = endpoint.startsWith("/api/") ? endpoint : `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  let url = `${BASE_URL}${path}`;
   if (params) {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
