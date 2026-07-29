@@ -7,7 +7,7 @@ export interface FetchOverdueLotsParams {
 export const OverdueCheckoutServices = {
   FetchAll(params: FetchOverdueLotsParams) {
     return {
-      endpoint: "/admin/lots/overdue-checkout",
+      endpoint: "/api/admin/lots/overdue-checkout",
       params: params as unknown as Record<string, string | number | undefined>,
     };
   },

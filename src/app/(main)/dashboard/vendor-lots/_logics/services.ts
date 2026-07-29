@@ -17,29 +17,29 @@ export interface FetchUnassignedLotsParams {
 export const VendorLotServices = {
   FetchAll(params: FetchLotsParams) {
     return {
-      endpoint: "/admin/lots",
+      endpoint: "/api/admin/lots",
       params: params as unknown as Record<string, string | number | undefined>,
     };
   },
   FetchUnassigned(params: FetchUnassignedLotsParams) {
     return {
-      endpoint: "/admin/lots/unassigned",
+      endpoint: "/api/admin/lots/unassigned",
       params: params as unknown as Record<string, string | number | boolean | undefined>,
     };
   },
   FetchStats() {
-    return { endpoint: "/admin/lots/stats" };
+    return { endpoint: "/api/admin/lots/stats" };
   },
   UpdatePricing(id: number) {
-    return { endpoint: `/admin/lots/${id}/pricing` };
+    return { endpoint: `/api/admin/lots/${id}/pricing` };
   },
   ApproveLot(id: number) {
-    return { endpoint: `/admin/lots/${id}/approve` };
+    return { endpoint: `/api/admin/lots/${id}/approve` };
   },
   RejectLot(id: number) {
-    return { endpoint: `/admin/lots/${id}/reject` };
+    return { endpoint: `/api/admin/lots/${id}/reject` };
   },
   FeatureLot(id: number, featured: boolean) {
-    return { endpoint: `/admin/lots/${id}/feature`, body: { featured } };
+    return { endpoint: `/api/admin/lots/${id}/feature`, body: { featured } };
   },
 };

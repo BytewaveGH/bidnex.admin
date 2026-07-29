@@ -1,5 +1,8 @@
 export const AnalyticsServices = {
   Fetch() {
-    return { endpoint: "/admin/analytics" };
+    return { endpoint: "/api/admin/analytics" };
+  },
+  FetchOperations() {
+    return { endpoint: "/api/admin/analytics/operations" };
   },
 };

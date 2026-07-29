@@ -7,15 +7,15 @@ export interface ICategoryPayload {
 
 export const CategoryServices = {
   FetchAll() {
-    return { endpoint: "/admin/categories" };
+    return { endpoint: "/api/admin/categories" };
   },
   Create(payload: ICategoryPayload) {
-    return { endpoint: "/admin/categories", method: "POST" as const, body: payload };
+    return { endpoint: "/api/admin/categories", method: "POST" as const, body: payload };
   },
   Update(id: number, payload: ICategoryPayload) {
-    return { endpoint: `/admin/categories/${id}`, method: "PUT" as const, body: payload };
+    return { endpoint: `/api/admin/categories/${id}`, method: "PUT" as const, body: payload };
   },
   Delete(id: number) {
-    return { endpoint: `/admin/categories/${id}`, method: "DELETE" as const };
+    return { endpoint: `/api/admin/categories/${id}`, method: "DELETE" as const };
   },
 };

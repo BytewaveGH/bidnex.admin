@@ -130,7 +130,7 @@ export function RoleDetailSheet({ open, onOpenChange, role }: RoleDetailSheetPro
   // ── Fetch admin users for the assign picker ───────────────────────────────
   const { data: usersRaw } = useQuery({
     queryKey: ["admin-users-for-assign"],
-    queryFn: () => apiRequest("/admin/users?accountType=admin&limit=200", token),
+    queryFn: () => apiRequest("/api/admin/users?accountType=admin&limit=200", token),
     enabled: !!token && assignOpen,
     staleTime: 60_000,
   });
