@@ -8,6 +8,7 @@ import {
   Package,
   Server,
   Tag,
+  Truck,
   Users,
 } from "lucide-react";
 
@@ -119,6 +120,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Overdue Checkout",
         url: "/dashboard/overdue-checkout",
         icon: Clock,
+      },
+      {
+        id: "fulfillment",
+        title: "Fulfillment & Settlement",
+        url: "/dashboard/fulfillment",
+        icon: Truck,
       },
       {
         id: "disputes",

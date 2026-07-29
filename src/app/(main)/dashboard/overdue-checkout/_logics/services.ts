@@ -13,8 +13,8 @@ export const OverdueCheckoutServices = {
   },
   RelistLot(id: number) {
     return {
-      endpoint: `/api/admin/lots/${id}/relist`,
-      method: "POST" as const,
+      endpoint: `/admin/lots/${id}/relist`,
+      method: "PUT" as const,
     };
   },
 };

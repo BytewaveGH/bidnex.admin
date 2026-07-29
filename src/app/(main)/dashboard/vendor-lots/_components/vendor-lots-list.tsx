@@ -30,11 +30,14 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiRequest } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
+import { flattenCategories, type ICategory } from "../../categories/_components/data";
+import { CategoryServices } from "../../categories/_logics/services";
 import { VendorLotServices } from "../_logics/services";
 import type { LotReviewStatus, VendorLot } from "./vendor-lots-data";
 
@@ -50,7 +53,7 @@ interface ApiLotsResponse {
 }
 
 function normalise(res: ApiLotsResponse): { lots: VendorLot[]; total: number } {
-  const inner = res?.data;
+  const inner = res.data;
   const lots = inner?.data ?? [];
   const total = inner?.count ?? lots.length;
   return { lots, total };
@@ -63,6 +66,17 @@ interface LotsStatsResponse {
     total: number;
     byReviewStatus: Record<LotReviewStatus, number>;
   };
+}
+
+interface ApiCategoriesResponse {
+  data?: ICategory[] | { data?: ICategory[] };
+}
+
+function normaliseCategories(res: ApiCategoriesResponse): ICategory[] {
+  const inner = res.data;
+  if (Array.isArray(inner)) return inner;
+  if (inner && !Array.isArray(inner) && Array.isArray(inner.data)) return inner.data;
+  return [];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -217,6 +231,7 @@ export function VendorLotsList() {
   const [reviewStatusFilter, setReviewStatusFilter] = React.useState("all");
   const [searchInput, setSearchInput] = React.useState("");
   const [search, setSearch] = React.useState("");
+  const [categoryId, setCategoryId] = React.useState("");
   const [unassignedOnly, setUnassignedOnly] = React.useState(false);
 
   function resetPage() {
@@ -251,16 +266,31 @@ export function VendorLotsList() {
   const byStatus = statsRes?.data?.byReviewStatus;
   const statsTotal = statsRes?.data?.total;
 
+  const { data: categoriesRes } = useQuery({
+    queryKey: ["admin-categories"],
+    queryFn: () => apiRequest<ApiCategoriesResponse>(CategoryServices.FetchAll().endpoint, token),
+    enabled: sessionStatus === "authenticated",
+    staleTime: 30_000,
+  });
+  const categoryOptions = React.useMemo(
+    () => flattenCategories(normaliseCategories(categoriesRes ?? {})),
+    [categoriesRes],
+  );
+
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const {
     data: raw,
     isLoading,
     isFetching,
   } = useQuery({
-    queryKey: ["admin-lots", page, pageSize, reviewStatusFilter, search, unassignedOnly],
+    queryKey: ["admin-lots", page, pageSize, reviewStatusFilter, search, categoryId, unassignedOnly],
     queryFn: async () => {
       if (unassignedOnly) {
-        const svc = VendorLotServices.FetchUnassigned({ page: page + 1, limit: pageSize });
+        const svc = VendorLotServices.FetchUnassigned({
+          page: page + 1,
+          limit: pageSize,
+          ...(categoryId ? { categoryId } : {}),
+        });
         return apiRequest<ApiLotsResponse>(svc.endpoint, token, { params: svc.params });
       }
       const svc = VendorLotServices.FetchAll({
@@ -268,6 +298,7 @@ export function VendorLotsList() {
         limit: pageSize,
         ...(reviewStatusFilter !== "all" ? { reviewStatus: reviewStatusFilter } : {}),
         ...(search ? { search } : {}),
+        ...(categoryId ? { categoryId } : {}),
       });
       return apiRequest<ApiLotsResponse>(svc.endpoint, token, { params: svc.params });
     },
@@ -331,6 +362,25 @@ export function VendorLotsList() {
           </CardDescription>
           <CardAction>
             <div className="flex items-center gap-2">
+              <Select
+                value={categoryId || "all"}
+                onValueChange={(value) => {
+                  setCategoryId(value === "all" ? "" : value);
+                  resetPage();
+                }}
+              >
+                <SelectTrigger className="h-7 w-44">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categoryOptions.map((category) => (
+                    <SelectItem key={category.id} value={String(category.id)}>
+                      {`${category.depth > 0 ? `${"— ".repeat(category.depth)}` : ""}${category.name}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {!unassignedOnly && (
                 <Input
                   className="h-7 w-44 md:w-52"
