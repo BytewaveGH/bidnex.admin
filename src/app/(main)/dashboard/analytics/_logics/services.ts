@@ -69,9 +69,25 @@ export interface RealtimeBidWar {
   bidCount: number;
 }
 
+export interface RealtimeWatchlistItem {
+  id: number;
+  title: string;
+  watchers: number;
+  currentBid: number;
+  bidEndTime: string;
+}
+
+export interface RealtimeDeviceSplit {
+  mobileCount: number;
+  desktopCount: number;
+  mobilePct: number;
+  desktopPct: number;
+}
+
 export interface RealtimeHistoryPoint {
   label: string;
   activeBidders: number;
+  onlineVisitors: number;
   bidsPerMinute: number;
   velocity: number;
 }
@@ -92,6 +108,8 @@ export interface AnalyticsRealtimeData {
   hottestLot: RealtimeHottestLot | null;
   endingSoon: { count: number; lots: RealtimeEndingSoonLot[] };
   bidWars: RealtimeBidWar[];
+  watchlistPressure: RealtimeWatchlistItem[];
+  deviceSplit: RealtimeDeviceSplit;
   history: RealtimeHistory;
 }
 
