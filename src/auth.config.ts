@@ -37,7 +37,7 @@ export const authConfig = {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
         const tenantDomain = process.env.TENANT_DOMAIN ?? "admin";
 
-        const res = await fetch(`${apiUrl}/auth/refresh`, {
+        const res = await fetch(`${apiUrl}/api/auth/refresh`, {
           method: "GET",
           headers: {
             "X-Refresh-Token": token.refreshToken,

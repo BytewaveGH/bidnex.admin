@@ -2,6 +2,7 @@ export interface FetchLotsParams {
   search?: string;
   condition?: string;
   reviewStatus?: string;
+  categoryId?: string;
   page: number;
   limit: number;
 }
