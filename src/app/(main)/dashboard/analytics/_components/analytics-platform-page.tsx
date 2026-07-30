@@ -4,7 +4,18 @@
 import * as React from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowUpRight, Flame, RefreshCw, Swords, Timer, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  Flame,
+  Monitor,
+  RefreshCw,
+  Smartphone,
+  Swords,
+  Timer,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
 
@@ -72,6 +83,7 @@ const realtimeChartConfig = {
 
 const historyChartConfig = {
   activeBidders: { color: "var(--chart-1)", label: "Active Bidders" },
+  onlineVisitors: { color: "var(--chart-3)", label: "Online Visitors" },
   bidsPerMinute: { color: "var(--chart-2)", label: "Bids / min" },
 } satisfies ChartConfig;
 
@@ -214,6 +226,8 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
   const hottestLot = data?.hottestLot ?? null;
   const endingSoon = data?.endingSoon;
   const bidWars = data?.bidWars ?? [];
+  const watchlistPressure = data?.watchlistPressure ?? [];
+  const deviceSplit = data?.deviceSplit ?? null;
   const history = data?.history;
   const [historyPeriod, setHistoryPeriod] = React.useState<HistoryPeriod>("daily");
   const historyData: RealtimeHistoryPoint[] = history?.[historyPeriod] ?? [];
@@ -266,6 +280,39 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
                   </div>
                   <span className="text-muted-foreground text-xs tabular-nums">
                     {velocity.last5Min} vs {velocity.prior5Min} prior
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-xs">Watchlist pressure</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-semibold text-2xl tabular-nums leading-none">{watchlistPressure.length}</span>
+                  <span className="text-muted-foreground text-sm">lots</span>
+                </div>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {watchlistPressure.reduce((sum, item) => sum + item.watchers, 0)} watchers, no bids
+                </span>
+              </div>
+              {deviceSplit && (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-muted-foreground text-xs">Device split</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <Smartphone className="size-4 text-muted-foreground" />
+                      <span className="font-semibold text-2xl tabular-nums leading-none">
+                        {deviceSplit.mobilePct.toFixed(0)}%
+                      </span>
+                    </div>
+                    <span className="text-muted-foreground">/</span>
+                    <div className="flex items-center gap-1">
+                      <Monitor className="size-4 text-muted-foreground" />
+                      <span className="font-semibold text-2xl tabular-nums leading-none">
+                        {deviceSplit.desktopPct.toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {deviceSplit.mobileCount} · {deviceSplit.desktopCount} users
                   </span>
                 </div>
               )}
@@ -368,6 +415,10 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
                         <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.25} />
                         <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0.02} />
                       </linearGradient>
+                      <linearGradient id="fillOnlineVisitors" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0.01} />
+                      </linearGradient>
                     </defs>
                     <CartesianGrid vertical={false} />
                     <XAxis
@@ -390,6 +441,16 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
                     />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <ChartLegend content={<ChartLegendContent />} />
+                    <Area
+                      dataKey="onlineVisitors"
+                      dot={false}
+                      fill="url(#fillOnlineVisitors)"
+                      stroke="var(--chart-3)"
+                      strokeWidth={1.5}
+                      strokeOpacity={0.7}
+                      type="monotone"
+                      yAxisId="bidders"
+                    />
                     <Area
                       dataKey="activeBidders"
                       dot={false}

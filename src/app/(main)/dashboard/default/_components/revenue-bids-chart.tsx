@@ -14,7 +14,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { RevenueBidsPeriods } from "./overview";
 
@@ -101,19 +101,15 @@ export function RevenueBidsChart({ revenueBids }: Props) {
         <CardTitle className="leading-none">Revenue &amp; Bids</CardTitle>
         <CardDescription>{periodDescriptions[period]}</CardDescription>
         <CardAction>
-          <TabsList className="h-8">
-            {(["daily", "weekly", "monthly", "yearly"] as Period[]).map((p) => (
-              <TabsTrigger
-                key={p}
-                value={p}
-                className="h-7 px-2 text-xs"
-                data-state={period === p ? "active" : "inactive"}
-                onClick={() => setPeriod(p)}
-              >
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
+            <TabsList className="h-8">
+              {(["daily", "weekly", "monthly", "yearly"] as Period[]).map((p) => (
+                <TabsTrigger key={p} value={p} className="h-7 px-2 text-xs">
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </CardAction>
       </CardHeader>
 

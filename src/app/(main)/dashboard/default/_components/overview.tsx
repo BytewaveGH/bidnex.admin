@@ -115,7 +115,7 @@ export function Overview() {
   const { data: session, status: sessionStatus } = useSession();
   const token = session?.accessToken;
 
-  const { data: raw } = useQuery({
+  const { data: raw, isLoading } = useQuery({
     queryKey: ["admin-analytics"],
     queryFn: () => apiRequest(AnalyticsServices.Fetch().endpoint, token),
     enabled: sessionStatus === "authenticated",
@@ -129,14 +129,14 @@ export function Overview() {
     <div className="flex flex-col gap-4">
       <AuctionStatsCards kpis={analytics?.kpis} lotPipeline={analytics?.lotPipeline} />
       <RevenueBidsChart revenueBids={analytics?.revenueBids} />
-      <TopLotsTable lots={analytics?.topLots} />
+      <TopLotsTable lots={analytics?.topLots} isLoading={isLoading} />
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <AuctionPerformance auctions={analytics?.auctionPerformance} />
+        <AuctionPerformance auctions={analytics?.auctionPerformance} isLoading={isLoading} />
         <ActionsNeeded actionsNeeded={analytics?.actionsNeeded} />
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <LotApprovalFunnel lotPipeline={analytics?.lotPipeline} />
-        <VendorLeaderboard topVendors={analytics?.topVendors} />
+        <LotApprovalFunnel lotPipeline={analytics?.lotPipeline} isLoading={isLoading} />
+        <VendorLeaderboard topVendors={analytics?.topVendors} isLoading={isLoading} />
       </div>
     </div>
   );
