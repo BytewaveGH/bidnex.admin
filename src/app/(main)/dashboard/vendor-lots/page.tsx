@@ -1,5 +1,7 @@
 "use client";
 
+import { Suspense } from "react";
+
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -85,7 +87,9 @@ export default function Page() {
         ))}
       </div>
 
-      <VendorLotsList />
+      <Suspense>
+        <VendorLotsList />
+      </Suspense>
     </div>
   );
 }

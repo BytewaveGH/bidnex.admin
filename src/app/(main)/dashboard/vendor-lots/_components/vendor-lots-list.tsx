@@ -3,7 +3,7 @@
 
 import * as React from "react";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { useQuery } from "@tanstack/react-query";
 import { type ColumnDef, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
@@ -222,38 +222,49 @@ function makeColumns(onView: (id: number, e: React.MouseEvent) => void): ColumnD
 
 export function VendorLotsList() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
   const token = session?.accessToken;
 
-  // ── Filter & pagination state ─────────────────────────────────────────────
-  const [page, setPage] = React.useState(0);
-  const [pageSize] = React.useState(10);
-  const [reviewStatusFilter, setReviewStatusFilter] = React.useState("all");
-  const [searchInput, setSearchInput] = React.useState("");
-  const [search, setSearch] = React.useState("");
-  const [categoryId, setCategoryId] = React.useState("");
-  const [unassignedOnly, setUnassignedOnly] = React.useState(false);
+  // ── Filter & pagination state (URL-backed so nav back restores position) ──
+  const page = Number(searchParams.get("page") ?? "0");
+  const pageSize = 10;
+  const reviewStatusFilter = searchParams.get("status") ?? "all";
+  const search = searchParams.get("search") ?? "";
+  const categoryId = searchParams.get("category") ?? "";
+  const unassignedOnly = searchParams.get("unassigned") === "1";
 
-  function resetPage() {
-    setPage(0);
+  // searchInput is local only — the uncommitted text before Enter
+  const [searchInput, setSearchInput] = React.useState(search);
+
+  function updateParams(updates: Record<string, string | undefined>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (!value || value === "0" || value === "all") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    }
+    router.replace(`?${params.toString()}`, { scroll: false });
   }
 
   function handleStatusChange(value: string) {
-    setReviewStatusFilter(value);
-    resetPage();
+    updateParams({ status: value, page: undefined });
   }
 
   function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
-      setSearch(searchInput);
-      resetPage();
+      updateParams({ search: searchInput || undefined, page: undefined });
     }
   }
 
   function handleUnassignedToggle() {
-    setUnassignedOnly((prev) => !prev);
-    setReviewStatusFilter("all");
-    resetPage();
+    updateParams({
+      unassigned: unassignedOnly ? undefined : "1",
+      status: undefined,
+      page: undefined,
+    });
   }
 
   // ── Stats (reads from cache populated by page.tsx) ────────────────────────
@@ -331,7 +342,7 @@ export function VendorLotsList() {
     manualFiltering: true,
     onPaginationChange: (updater) => {
       const next = typeof updater === "function" ? updater({ pageIndex: page, pageSize }) : updater;
-      setPage(next.pageIndex);
+      updateParams({ page: next.pageIndex === 0 ? undefined : String(next.pageIndex) });
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -365,8 +376,7 @@ export function VendorLotsList() {
               <Select
                 value={categoryId || "all"}
                 onValueChange={(value) => {
-                  setCategoryId(value === "all" ? "" : value);
-                  resetPage();
+                  updateParams({ category: value === "all" ? undefined : value, page: undefined });
                 }}
               >
                 <SelectTrigger className="h-7 w-44">
