@@ -30,6 +30,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiRequest } from "@/lib/api-client";
@@ -231,6 +232,7 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
   const deviceSplit = data?.deviceSplit ?? null;
   const history = data?.history;
   const [historyPeriod, setHistoryPeriod] = React.useState<HistoryPeriod>("daily");
+  const [intentSheetOpen, setIntentSheetOpen] = React.useState(false);
   const historyData: RealtimeHistoryPoint[] = history?.[historyPeriod] ?? [];
 
   const VelocityIcon = velocity?.trend === "up" ? TrendingUp : TrendingDown;
@@ -317,18 +319,112 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
                   </span>
                 </div>
               )}
-              <div className="flex flex-col gap-0.5">
+              <button
+                type="button"
+                onClick={() => setIntentSheetOpen(true)}
+                className="flex flex-col gap-0.5 text-left transition-opacity hover:opacity-70"
+              >
                 <span className="text-muted-foreground text-xs">High intent</span>
                 <div className="flex items-baseline gap-1">
                   <span className="font-semibold text-2xl tabular-nums leading-none">{highIntentBidders.length}</span>
                   <span className="text-muted-foreground text-sm">bidders</span>
                 </div>
-                <span className="truncate text-muted-foreground text-xs">
+                <span className="text-muted-foreground text-xs">
                   {highIntentBidders.length > 0
-                    ? `top: ${highIntentBidders[0].username} (${highIntentBidders[0].watchlistCount})`
+                    ? `${highIntentBidders[0].username} · ${highIntentBidders[0].watchlistCount} lots`
                     : "none right now"}
                 </span>
-              </div>
+              </button>
+
+              <Sheet open={intentSheetOpen} onOpenChange={setIntentSheetOpen}>
+                <SheetContent className="flex flex-col gap-0 overflow-hidden p-0">
+                  {/* Header */}
+                  <SheetHeader className="border-b px-6 py-5">
+                    <SheetTitle>High Intent Bidders</SheetTitle>
+                    <SheetDescription>
+                      Bidders with large watchlists but no bids yet — highest conversion opportunity right now.
+                    </SheetDescription>
+                  </SheetHeader>
+
+                  {/* Summary strip */}
+                  {highIntentBidders.length > 0 && (
+                    <div className="flex items-center gap-6 border-b bg-muted/40 px-6 py-3">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-lg tabular-nums leading-none">
+                          {highIntentBidders.length}
+                        </span>
+                        <span className="mt-0.5 text-muted-foreground text-xs">bidders</span>
+                      </div>
+                      <div className="h-6 w-px bg-border" />
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-lg tabular-nums leading-none">
+                          {highIntentBidders.reduce((s, b) => s + b.watchlistCount, 0)}
+                        </span>
+                        <span className="mt-0.5 text-muted-foreground text-xs">lots watched total</span>
+                      </div>
+                      <div className="h-6 w-px bg-border" />
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-lg tabular-nums leading-none">
+                          {highIntentBidders[0]?.watchlistCount ?? 0}
+                        </span>
+                        <span className="mt-0.5 text-muted-foreground text-xs">top watcher</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* List */}
+                  <div className="flex-1 overflow-y-auto">
+                    {highIntentBidders.length === 0 ? (
+                      <p className="px-6 py-8 text-center text-muted-foreground text-sm">
+                        No high intent bidders right now.
+                      </p>
+                    ) : (
+                      (() => {
+                        const max = highIntentBidders[0].watchlistCount;
+                        return highIntentBidders.map((b, i) => {
+                          const rankColors = [
+                            "bg-amber-400/20 text-amber-600 dark:text-amber-400",
+                            "bg-muted text-muted-foreground",
+                            "bg-orange-400/15 text-orange-600 dark:text-orange-400",
+                          ];
+                          const rankColor = rankColors[i] ?? "bg-muted text-muted-foreground";
+                          const barWidth = Math.round((b.watchlistCount / max) * 100);
+                          return (
+                            <div
+                              key={b.accountId}
+                              className="group flex flex-col gap-2 border-b px-6 py-4 last:border-0"
+                            >
+                              <div className="flex items-center gap-3">
+                                <span
+                                  className={cn(
+                                    "flex size-6 shrink-0 items-center justify-center rounded-full font-semibold text-xs",
+                                    rankColor,
+                                  )}
+                                >
+                                  {i + 1}
+                                </span>
+                                <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                                  <span className="font-medium text-sm">{b.username}</span>
+                                  <span className="shrink-0 font-semibold text-sm tabular-nums">
+                                    {b.watchlistCount}
+                                    <span className="ml-1 font-normal text-muted-foreground text-xs">lots</span>
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="ml-9 h-1 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className="h-full rounded-full bg-chart-1 transition-all"
+                                  style={{ width: `${barWidth}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
 
             {/* Sparkline */}
