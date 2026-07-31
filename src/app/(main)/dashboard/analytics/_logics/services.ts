@@ -69,6 +69,12 @@ export interface RealtimeBidWar {
   bidCount: number;
 }
 
+export interface RealtimeHighIntentBidder {
+  accountId: number;
+  username: string;
+  watchlistCount: number;
+}
+
 export interface RealtimeWatchlistItem {
   id: number;
   title: string;
@@ -108,6 +114,7 @@ export interface AnalyticsRealtimeData {
   hottestLot: RealtimeHottestLot | null;
   endingSoon: { count: number; lots: RealtimeEndingSoonLot[] };
   bidWars: RealtimeBidWar[];
+  highIntentBidders: RealtimeHighIntentBidder[];
   watchlistPressure: RealtimeWatchlistItem[];
   deviceSplit: RealtimeDeviceSplit;
   history: RealtimeHistory;

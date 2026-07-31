@@ -226,6 +226,7 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
   const hottestLot = data?.hottestLot ?? null;
   const endingSoon = data?.endingSoon;
   const bidWars = data?.bidWars ?? [];
+  const highIntentBidders = data?.highIntentBidders ?? [];
   const watchlistPressure = data?.watchlistPressure ?? [];
   const deviceSplit = data?.deviceSplit ?? null;
   const history = data?.history;
@@ -316,6 +317,18 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
                   </span>
                 </div>
               )}
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-xs">High intent</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-semibold text-2xl tabular-nums leading-none">{highIntentBidders.length}</span>
+                  <span className="text-muted-foreground text-sm">bidders</span>
+                </div>
+                <span className="truncate text-muted-foreground text-xs">
+                  {highIntentBidders.length > 0
+                    ? `top: ${highIntentBidders[0].username} (${highIntentBidders[0].watchlistCount})`
+                    : "none right now"}
+                </span>
+              </div>
             </div>
 
             {/* Sparkline */}
