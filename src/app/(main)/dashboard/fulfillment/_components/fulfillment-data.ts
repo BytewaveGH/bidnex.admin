@@ -232,7 +232,7 @@ export const orderStatuses: { value: OrderStatus; label: string }[] = (
   Object.keys(orderStatusMeta) as OrderStatus[]
 ).map((value) => ({ value, label: orderStatusMeta[value].label }));
 
-export const courierProviders = ["GhanaPost", "Yango", "Bolt", "Speedaf", "DHL Express"];
+export const courierProviders = ["BidChale", "GhanaPost", "Yango", "Bolt", "Speedaf", "DHL Express"];
 
 export type AdminActionKind =
   | "initiate-delivery"

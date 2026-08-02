@@ -1,4 +1,5 @@
 "use client";
+"use no memo";
 
 import * as React from "react";
 
@@ -168,6 +169,55 @@ export function FulfillmentDetail({ order }: Props) {
             <span className="text-muted-foreground text-sm">{order.lot.title}</span>
           </div>
         </div>
+
+        {/* Primary action — always visible at the top of the page */}
+        {action && (
+          <div className="flex shrink-0 items-center gap-2">
+            {action === "initiate-delivery" && (
+              <Button onClick={() => setInitiateOpen(true)}>
+                <Truck className="size-4" />
+                Initiate Delivery
+              </Button>
+            )}
+            {action === "mark-picked-up" && (
+              <Button disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("picked_up")}>
+                <Truck className="size-4" />
+                {statusMutation.isPending ? "Updating…" : "Mark Picked Up"}
+              </Button>
+            )}
+            {action === "mark-in-transit" && (
+              <Button disabled={statusMutation.isPending} onClick={() => statusMutation.mutate("in_transit")}>
+                <Truck className="size-4" />
+                {statusMutation.isPending ? "Updating…" : "Mark In Transit"}
+              </Button>
+            )}
+            {action === "mark-delivered" && (
+              <Button
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                disabled={statusMutation.isPending}
+                onClick={() => statusMutation.mutate("delivered")}
+              >
+                <Truck className="size-4" />
+                {statusMutation.isPending ? "Updating…" : "Mark Delivered"}
+              </Button>
+            )}
+            {action === "release-payment" && (
+              <Button
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                onClick={() => setReleaseConfirmOpen(true)}
+              >
+                <CircleDollarSign className="size-4" />
+                Release Payment
+              </Button>
+            )}
+            {action === "view-receipt" && (
+              <Button variant="outline" onClick={() => setReceiptOpen(true)}>
+                <Receipt className="size-4" />
+                View Settlement Receipt
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
@@ -316,69 +366,6 @@ export function FulfillmentDetail({ order }: Props) {
 
         {/* ── Right column ── */}
         <div className="flex flex-col gap-6">
-          {/* Admin action */}
-          {action && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base leading-none">Admin Action</CardTitle>
-                <CardDescription>Next step to move this order forward.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {action === "initiate-delivery" && (
-                  <Button className="w-full" onClick={() => setInitiateOpen(true)}>
-                    <Truck className="size-4" />
-                    Initiate Delivery
-                  </Button>
-                )}
-                {action === "mark-picked-up" && (
-                  <Button
-                    className="w-full"
-                    disabled={statusMutation.isPending}
-                    onClick={() => statusMutation.mutate("picked_up")}
-                  >
-                    <Truck className="size-4" />
-                    {statusMutation.isPending ? "Updating…" : "Mark Picked Up"}
-                  </Button>
-                )}
-                {action === "mark-in-transit" && (
-                  <Button
-                    className="w-full"
-                    disabled={statusMutation.isPending}
-                    onClick={() => statusMutation.mutate("in_transit")}
-                  >
-                    <Truck className="size-4" />
-                    {statusMutation.isPending ? "Updating…" : "Mark In Transit"}
-                  </Button>
-                )}
-                {action === "mark-delivered" && (
-                  <Button
-                    className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
-                    disabled={statusMutation.isPending}
-                    onClick={() => statusMutation.mutate("delivered")}
-                  >
-                    <Truck className="size-4" />
-                    {statusMutation.isPending ? "Updating…" : "Mark Delivered"}
-                  </Button>
-                )}
-                {action === "release-payment" && (
-                  <Button
-                    className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
-                    onClick={() => setReleaseConfirmOpen(true)}
-                  >
-                    <CircleDollarSign className="size-4" />
-                    Release Payment
-                  </Button>
-                )}
-                {action === "view-receipt" && (
-                  <Button variant="outline" className="w-full" onClick={() => setReceiptOpen(true)}>
-                    <Receipt className="size-4" />
-                    View Settlement Receipt
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
           {/* Buyer */}
           <Card>
             <CardHeader>
@@ -451,8 +438,9 @@ export function FulfillmentDetail({ order }: Props) {
           <DialogHeader>
             <DialogTitle>Initiate Delivery</DialogTitle>
             <DialogDescription>
-              Request a third-party courier pickup for this lot. The seller and buyer addresses will be sent to the
-              provider automatically.
+              {provider === "BidChale"
+                ? "BidChale will handle this delivery in-house. Coordinate pickup and drop-off directly with the seller and buyer."
+                : "Request a third-party courier pickup for this lot. The seller and buyer addresses will be sent to the provider automatically."}
             </DialogDescription>
           </DialogHeader>
           <Select value={provider} onValueChange={setProvider}>
@@ -462,7 +450,7 @@ export function FulfillmentDetail({ order }: Props) {
             <SelectContent>
               {courierProviders.map((p) => (
                 <SelectItem key={p} value={p}>
-                  {p}
+                  {p === "BidChale" ? "BidChale (Self Delivery)" : p}
                 </SelectItem>
               ))}
             </SelectContent>

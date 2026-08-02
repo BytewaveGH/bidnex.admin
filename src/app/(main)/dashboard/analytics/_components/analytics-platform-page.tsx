@@ -41,6 +41,7 @@ import {
   AnalyticsPlatformServices,
   type AnalyticsRange,
   type AnalyticsRealtimeData,
+  type BidHeatmapCell,
   type RealtimeBidWar,
   type RealtimeEndingSoonLot,
   type RealtimeHistoryPoint,
@@ -389,11 +390,10 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
                           ];
                           const rankColor = rankColors[i] ?? "bg-muted text-muted-foreground";
                           const barWidth = Math.round((b.watchlistCount / max) * 100);
+                          const hasItems = b.watchlistItems && b.watchlistItems.length > 0;
                           return (
-                            <div
-                              key={b.accountId}
-                              className="group flex flex-col gap-2 border-b px-6 py-4 last:border-0"
-                            >
+                            <div key={b.accountId} className="flex flex-col gap-2 border-b px-6 py-4 last:border-0">
+                              {/* Bidder header */}
                               <div className="flex items-center gap-3">
                                 <span
                                   className={cn(
@@ -411,12 +411,30 @@ function RealtimeCard({ data, isError }: { data?: AnalyticsRealtimeData; isError
                                   </span>
                                 </div>
                               </div>
+
+                              {/* Intensity bar */}
                               <div className="ml-9 h-1 w-full overflow-hidden rounded-full bg-muted">
                                 <div
                                   className="h-full rounded-full bg-chart-1 transition-all"
                                   style={{ width: `${barWidth}%` }}
                                 />
                               </div>
+
+                              {/* Watchlisted lots */}
+                              {hasItems && (
+                                <div className="ml-9 flex flex-col divide-y rounded-md border">
+                                  {b.watchlistItems!.map((lot) => (
+                                    <div key={lot.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                                      <span className="min-w-0 truncate text-muted-foreground text-xs">
+                                        {lot.title}
+                                      </span>
+                                      <span className="shrink-0 text-xs tabular-nums">
+                                        {lot.currentBid > 0 ? `GHS ${lot.currentBid.toLocaleString()}` : "No bids"}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           );
                         });
@@ -841,6 +859,95 @@ function VendorTable({
   );
 }
 
+// ── Section: bid activity heatmap ────────────────────────────────────────────
+
+const HM_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const HM_HOUR_SPARSE = new Set([0, 3, 6, 9, 12, 15, 18, 21]);
+
+function hourLabel(h: number): string {
+  if (h === 0) return "12am";
+  if (h === 12) return "12pm";
+  return h < 12 ? `${h}am` : `${h - 12}pm`;
+}
+
+function BidHeatmapCard({ cells, isLoading }: { cells?: BidHeatmapCell[]; isLoading: boolean }) {
+  const grid = React.useMemo(() => {
+    const g: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+    for (const cell of cells ?? []) {
+      if (cell.day >= 0 && cell.day < 7 && cell.hour >= 0 && cell.hour < 24) {
+        g[cell.day][cell.hour] = cell.count;
+      }
+    }
+    return g;
+  }, [cells]);
+
+  const maxCount = React.useMemo(() => Math.max(1, ...(cells ?? []).map((c) => c.count)), [cells]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-normal">Bid Activity Heatmap</CardTitle>
+        <CardDescription>Peak hours and days when bidders are most active in the selected period</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : !cells || cells.length === 0 ? (
+          <p className="py-8 text-center text-muted-foreground text-sm">No bid data for this period.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="min-w-[580px]">
+              {/* Hour axis */}
+              <div className="mb-1.5 flex">
+                <div className="w-9 shrink-0" />
+                <div className="grid flex-1 gap-0.5" style={{ gridTemplateColumns: "repeat(24, 1fr)" }}>
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <div key={h} className="text-center text-[9px] leading-none text-muted-foreground">
+                      {HM_HOUR_SPARSE.has(h) ? hourLabel(h) : ""}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Grid rows */}
+              <div className="flex flex-col gap-0.5">
+                {HM_DAYS.map((day, d) => (
+                  <div key={day} className="flex items-center gap-1.5">
+                    <div className="w-9 shrink-0 text-right text-[10px] leading-none text-muted-foreground">{day}</div>
+                    <div className="grid flex-1 gap-0.5" style={{ gridTemplateColumns: "repeat(24, 1fr)" }}>
+                      {grid[d].map((count, h) => {
+                        const intensity = count / maxCount;
+                        return (
+                          <div
+                            key={h}
+                            className="aspect-square rounded-sm bg-chart-1"
+                            style={{ opacity: count === 0 ? 0.07 : Math.max(0.18, intensity) }}
+                            title={`${day} ${h.toString().padStart(2, "0")}:00 — ${count} bids`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Legend */}
+              <div className="mt-3 flex items-center justify-end gap-1.5">
+                <span className="text-[10px] text-muted-foreground">Less</span>
+                {[0.07, 0.25, 0.45, 0.65, 0.85, 1].map((op, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: legend steps have no identity
+                  <div key={i} className="size-3 rounded-sm bg-chart-1" style={{ opacity: op }} />
+                ))}
+                <span className="text-[10px] text-muted-foreground">More</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Section: error fallback ───────────────────────────────────────────────────
 
 function SectionError({ message, onRetry }: { message?: string; onRetry: () => void }) {
@@ -875,6 +982,16 @@ export function AnalyticsPlatformPage() {
     staleTime: Number.POSITIVE_INFINITY,
   });
 
+  const heatmapQuery = useQuery({
+    queryKey: ["admin-analytics-heatmap", range],
+    queryFn: () => {
+      const svc = AnalyticsPlatformServices.FetchHeatmap(range);
+      return apiRequest<{ data?: BidHeatmapCell[]; status?: boolean }>(svc.endpoint, token, { params: svc.params });
+    },
+    enabled: sessionStatus === "authenticated",
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
   // Show realtime error only after 3 consecutive failures (retry: 2 = 3 total attempts)
   const realtimeQuery = useQuery({
     queryKey: ["admin-analytics-realtime"],
@@ -902,6 +1019,7 @@ export function AnalyticsPlatformPage() {
         <>
           <KpiCards kpis={platformData?.kpis} isLoading={isLoading} range={range} />
           <TrafficQualityChart data={platformData?.trafficQuality} isLoading={isLoading} range={range} />
+          <BidHeatmapCard cells={heatmapQuery.data?.data} isLoading={heatmapQuery.isLoading} />
           <VendorTable vendors={platformData?.vendorPerformance} isLoading={isLoading} />
         </>
       )}

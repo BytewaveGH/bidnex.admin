@@ -69,10 +69,17 @@ export interface RealtimeBidWar {
   bidCount: number;
 }
 
+export interface RealtimeWatchlistLot {
+  id: number;
+  title: string;
+  currentBid: number;
+}
+
 export interface RealtimeHighIntentBidder {
   accountId: number;
   username: string;
   watchlistCount: number;
+  watchlistItems?: RealtimeWatchlistLot[];
 }
 
 export interface RealtimeWatchlistItem {
@@ -120,6 +127,12 @@ export interface AnalyticsRealtimeData {
   history: RealtimeHistory;
 }
 
+export interface BidHeatmapCell {
+  day: number; // 0 = Mon … 6 = Sun
+  hour: number; // 0–23
+  count: number;
+}
+
 export const AnalyticsPlatformServices = {
   Fetch(range: AnalyticsRange) {
     return {
@@ -129,5 +142,11 @@ export const AnalyticsPlatformServices = {
   },
   FetchRealtime() {
     return { endpoint: "/api/admin/analytics/realtime" };
+  },
+  FetchHeatmap(range: AnalyticsRange) {
+    return {
+      endpoint: "/api/admin/analytics/bid-heatmap",
+      params: { range } as Record<string, string>,
+    };
   },
 };

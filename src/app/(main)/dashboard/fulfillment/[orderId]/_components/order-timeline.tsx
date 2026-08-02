@@ -31,8 +31,10 @@ const eventIcons: Record<string, typeof Circle> = {
   CANCELLED: Ban,
 };
 
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string | null | undefined) {
+  if (!iso) return "—";
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const hours = d.getUTCHours().toString().padStart(2, "0");
   const minutes = d.getUTCMinutes().toString().padStart(2, "0");
@@ -80,7 +82,8 @@ export function OrderTimeline({ orderId }: Props) {
               const Icon = eventIcons[event.type] ?? Circle;
               const isLast = i === events.length - 1;
               return (
-                <li key={event.id} className="flex gap-3">
+                // biome-ignore lint/suspicious/noArrayIndexKey: timeline events may lack stable ids
+                <li key={event.id ?? i} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <div className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-muted">
                       <Icon className="size-3.5 text-muted-foreground" />

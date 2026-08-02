@@ -30,16 +30,12 @@ interface ApiAuctionsResponse {
     page: number;
     limit: number;
     data: IAuction[];
-  };
-  status?: boolean;
-}
-
-interface AuctionStatsResponse {
-  data?: {
-    totalAuctions: number;
-    activeAuctions: number;
-    totalLots: number;
-    liveBids: number;
+    stats?: {
+      totalAuctions: number;
+      activeAuctions: number;
+      totalLots: number;
+      liveBids: number;
+    };
   };
   status?: boolean;
 }
@@ -81,16 +77,9 @@ export default function Page() {
     placeholderData: (prev) => prev,
   });
 
-  const { data: statsRes, isLoading: statsLoading } = useQuery({
-    queryKey: ["auction-stats"],
-    queryFn: () => apiRequest<AuctionStatsResponse>("/api/admin/auctions/stats", token),
-    enabled: sessionStatus === "authenticated",
-    staleTime: 60_000,
-  });
-
   const auctions: IAuction[] = res?.data?.data ?? [];
   const totalCount = res?.data?.count ?? 0;
-  const stats = statsRes?.data;
+  const stats = res?.data?.stats;
 
   const pageCount = Math.max(Math.ceil(totalCount / PAGE_SIZE), 1);
   const currentPage = page + 1;
@@ -107,7 +96,7 @@ export default function Page() {
     void queryClient.invalidateQueries({ queryKey: ["auction-stats"] });
   }
 
-  const kpiLoading = statsLoading || sessionStatus === "loading";
+  const kpiLoading = isLoading || sessionStatus === "loading";
 
   return (
     <div className="flex flex-col gap-6">
