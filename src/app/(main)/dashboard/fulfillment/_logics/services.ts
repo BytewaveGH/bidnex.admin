@@ -27,7 +27,7 @@ export const FulfillmentServices = {
   UpdateDeliveryStatus(lotId: number | string) {
     return {
       endpoint: `/admin/orders/${lotId}/delivery`,
-      method: "PATCH" as const,
+      method: "PUT" as const,
     };
   },
   ReleaseSettlement(lotId: number | string) {
