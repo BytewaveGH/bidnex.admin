@@ -982,16 +982,6 @@ export function AnalyticsPlatformPage() {
     staleTime: Number.POSITIVE_INFINITY,
   });
 
-  const heatmapQuery = useQuery({
-    queryKey: ["admin-analytics-heatmap", range],
-    queryFn: () => {
-      const svc = AnalyticsPlatformServices.FetchHeatmap(range);
-      return apiRequest<{ data?: BidHeatmapCell[]; status?: boolean }>(svc.endpoint, token, { params: svc.params });
-    },
-    enabled: sessionStatus === "authenticated",
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-
   // Show realtime error only after 3 consecutive failures (retry: 2 = 3 total attempts)
   const realtimeQuery = useQuery({
     queryKey: ["admin-analytics-realtime"],
@@ -1019,7 +1009,7 @@ export function AnalyticsPlatformPage() {
         <>
           <KpiCards kpis={platformData?.kpis} isLoading={isLoading} range={range} />
           <TrafficQualityChart data={platformData?.trafficQuality} isLoading={isLoading} range={range} />
-          <BidHeatmapCard cells={heatmapQuery.data?.data} isLoading={heatmapQuery.isLoading} />
+          <BidHeatmapCard cells={platformData?.heatmap} isLoading={isLoading} />
           <VendorTable vendors={platformData?.vendorPerformance} isLoading={isLoading} />
         </>
       )}

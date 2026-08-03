@@ -33,6 +33,7 @@ export interface AnalyticsPlatformData {
   kpis: AnalyticsPlatformKpis;
   trafficQuality: TrafficQualityPoint[];
   vendorPerformance: VendorRow[];
+  heatmap?: BidHeatmapCell[];
 }
 
 export interface RealtimeMinutePoint {
@@ -142,11 +143,5 @@ export const AnalyticsPlatformServices = {
   },
   FetchRealtime() {
     return { endpoint: "/api/admin/analytics/realtime" };
-  },
-  FetchHeatmap(range: AnalyticsRange) {
-    return {
-      endpoint: "/api/admin/analytics/bid-heatmap",
-      params: { range } as Record<string, string>,
-    };
   },
 };
