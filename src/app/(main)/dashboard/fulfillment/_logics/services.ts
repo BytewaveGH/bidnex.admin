@@ -36,4 +36,10 @@ export const FulfillmentServices = {
       method: "POST" as const,
     };
   },
+  Refund(lotId: number | string) {
+    return {
+      endpoint: `/admin/orders/${lotId}/refund`,
+      method: "POST" as const,
+    };
+  },
 };
