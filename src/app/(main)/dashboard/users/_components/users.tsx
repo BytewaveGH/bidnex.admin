@@ -133,7 +133,7 @@ export function Users() {
 
   const suspendMutation = useMutation({
     mutationFn: async ({ user, reason }: { user: IAdminUser; reason: string }) => {
-      const svc = UserAdminServices.Suspend(user.id, reason.trim() || undefined);
+      const svc = UserAdminServices.Suspend(user.id, reason.trim() || "");
       return apiRequest(svc.endpoint, token, { method: svc.method, body: svc.body });
     },
     onMutate: ({ user }) => setLoadingUserId(user.id),
