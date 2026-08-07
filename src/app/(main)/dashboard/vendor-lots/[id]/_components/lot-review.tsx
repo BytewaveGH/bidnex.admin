@@ -200,10 +200,14 @@ export function LotReview({ lot, returnTo = "/dashboard/vendor-lots" }: Props) {
   // falling back to 1 when there's no reserve price (a starting bid of 0 isn't valid)
   const defaultStartingBid = lot.reservePrice || 1;
   const [startingBid, setStartingBid] = React.useState(defaultStartingBid);
-  const [bidIncrement, setBidIncrement] = React.useState(lot.bidIncrement);
-  const [msrp, setMsrp] = React.useState(lot.msrp);
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: these fields are typed optional in VendorLot
+  const [bidIncrement, setBidIncrement] = React.useState(lot.bidIncrement ?? 0);
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: these fields are typed optional in VendorLot
+  const [msrp, setMsrp] = React.useState(lot.msrp ?? 0);
 
-  const isPricingDirty = startingBid !== defaultStartingBid || bidIncrement !== lot.bidIncrement || msrp !== lot.msrp;
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: these fields are typed optional in VendorLot
+  const isPricingDirty =
+    startingBid !== defaultStartingBid || bidIncrement !== (lot.bidIncrement ?? 0) || msrp !== (lot.msrp ?? 0);
 
   const pricingMutation = useMutation({
     mutationFn: () => {
