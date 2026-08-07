@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   Banknote,
   ChevronLeft,
-  CircleDollarSign,
   Mail,
   MapPin,
   Phone,
@@ -164,6 +163,19 @@ export function FulfillmentDetail({ order }: Props) {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to release payment."),
   });
 
+  const retryPayoutMutation = useMutation({
+    mutationFn: () => {
+      const payoutId = order.settlement.payoutId ?? order.lotId;
+      const svc = FulfillmentServices.RetryPayout(payoutId);
+      return apiRequest(svc.endpoint, token, { method: svc.method });
+    },
+    onSuccess: () => {
+      toast.success("Payout retried — settlement is being processed.");
+      invalidate();
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to retry payout."),
+  });
+
   const refundMutation = useMutation({
     mutationFn: () => {
       const svc = FulfillmentServices.Refund(order.lotId);
@@ -259,8 +271,17 @@ export function FulfillmentDetail({ order }: Props) {
                 className="bg-emerald-600 text-white hover:bg-emerald-700"
                 onClick={() => setReleaseConfirmOpen(true)}
               >
-                {/* <Money className="size-4" /> */}
                 Pay Vendor
+              </Button>
+            )}
+            {action === "retry-payout" && (
+              <Button
+                className="bg-amber-600 text-white hover:bg-amber-700"
+                disabled={retryPayoutMutation.isPending}
+                onClick={() => retryPayoutMutation.mutate()}
+              >
+                <RefreshCw className={retryPayoutMutation.isPending ? "animate-spin" : ""} />
+                {retryPayoutMutation.isPending ? "Retrying…" : "Retry Payout"}
               </Button>
             )}
             {action === "view-receipt" && (
@@ -286,7 +307,7 @@ export function FulfillmentDetail({ order }: Props) {
               {order.lot.images.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto">
                   {order.lot.images.map((src) => (
-                    // eslint-disable-next-line @next/next/no-img-element
+                    // biome-ignore lint/performance/noImgElement: external vendor image URLs without configured hostname
                     <img
                       key={src}
                       src={src}

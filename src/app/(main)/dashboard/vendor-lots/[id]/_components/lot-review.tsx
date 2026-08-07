@@ -115,6 +115,18 @@ function RejectionTemplatePicker({ onSelect }: { onSelect: (text: string) => voi
   );
 }
 
+function renderActiveMedia(item: LotImage | undefined) {
+  if (!item) {
+    return <div className="grid size-full place-items-center text-muted-foreground text-sm">No image</div>;
+  }
+  if (item.mediaType === "video") {
+    // biome-ignore lint/a11y/useMediaCaption: vendor-uploaded lot videos have no caption track available
+    return <video key={item.url} src={item.url} controls className="size-full object-contain" />;
+  }
+  // biome-ignore lint/performance/noImgElement: external vendor image URLs without configured hostname
+  return <img src={item.url} alt="Lot" className="size-full object-contain" />;
+}
+
 function ImageGallery({ images, primaryImage }: { images: LotImage[]; primaryImage: string }) {
   const [active, setActive] = React.useState<LotImage | undefined>(
     () => images.find((img) => img.url === primaryImage) ?? images[0],
@@ -123,16 +135,7 @@ function ImageGallery({ images, primaryImage }: { images: LotImage[]; primaryIma
   return (
     <div className="flex flex-col gap-2">
       <div className="relative aspect-video w-full overflow-hidden rounded-lg border bg-muted">
-        {active ? (
-          active.mediaType === "video" ? (
-            // biome-ignore lint/a11y/useMediaCaption: vendor-uploaded lot videos have no caption track available
-            <video key={active.url} src={active.url} controls className="size-full object-contain" />
-          ) : (
-            <img src={active.url} alt="Lot" className="size-full object-contain" />
-          )
-        ) : (
-          <div className="grid size-full place-items-center text-muted-foreground text-sm">No image</div>
-        )}
+        {renderActiveMedia(active)}
       </div>
       {images.length > 1 && (
         <div className="flex gap-2">
@@ -151,6 +154,7 @@ function ImageGallery({ images, primaryImage }: { images: LotImage[]; primaryIma
                   <Play className="size-5 fill-current text-muted-foreground" />
                 </div>
               ) : (
+                // biome-ignore lint/performance/noImgElement: external vendor image URLs without configured hostname
                 <img src={img.url} alt="" className="size-full object-cover" />
               )}
             </button>
@@ -179,9 +183,10 @@ function EditablePrice({ value, onChange }: { value: number; onChange: (v: numbe
 
 interface Props {
   lot: VendorLot;
+  returnTo?: string;
 }
 
-export function LotReview({ lot }: Props) {
+export function LotReview({ lot, returnTo = "/dashboard/vendor-lots" }: Props) {
   const router = useRouter();
   const { data: session } = useSession();
   const token = session?.accessToken;
@@ -195,11 +200,10 @@ export function LotReview({ lot }: Props) {
   // falling back to 1 when there's no reserve price (a starting bid of 0 isn't valid)
   const defaultStartingBid = lot.reservePrice || 1;
   const [startingBid, setStartingBid] = React.useState(defaultStartingBid);
-  const [bidIncrement, setBidIncrement] = React.useState(lot.bidIncrement ?? 0);
-  const [msrp, setMsrp] = React.useState(lot.msrp ?? 0);
+  const [bidIncrement, setBidIncrement] = React.useState(lot.bidIncrement);
+  const [msrp, setMsrp] = React.useState(lot.msrp);
 
-  const isPricingDirty =
-    startingBid !== defaultStartingBid || bidIncrement !== (lot.bidIncrement ?? 0) || msrp !== (lot.msrp ?? 0);
+  const isPricingDirty = startingBid !== defaultStartingBid || bidIncrement !== lot.bidIncrement || msrp !== lot.msrp;
 
   const pricingMutation = useMutation({
     mutationFn: () => {
@@ -208,10 +212,10 @@ export function LotReview({ lot }: Props) {
         method: "PUT",
         body: {
           startingBid,
-          reservePrice: lot.reservePrice ?? 0,
+          reservePrice: lot.reservePrice,
           bidIncrement,
           msrp,
-          buyNowPrice: lot.buyNowPrice ?? 0,
+          buyNowPrice: lot.buyNowPrice,
         },
       });
     },
@@ -229,7 +233,7 @@ export function LotReview({ lot }: Props) {
     },
     onSuccess: () => {
       toast.success("Lot approved.");
-      router.push("/dashboard/vendor-lots");
+      router.push(returnTo);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to approve lot."),
   });
@@ -241,7 +245,7 @@ export function LotReview({ lot }: Props) {
     },
     onSuccess: () => {
       toast.success("Lot rejected.");
-      router.push("/dashboard/vendor-lots");
+      router.push(returnTo);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to reject lot."),
   });
@@ -261,7 +265,7 @@ export function LotReview({ lot }: Props) {
     <div className="flex flex-col gap-6">
       {/* Back nav */}
       <Button variant="ghost" size="sm" className="-ml-2 w-fit text-muted-foreground" asChild>
-        <Link href="/dashboard/vendor-lots">
+        <Link href={returnTo}>
           <ChevronLeft className="size-4" />
           Vendor Lots
         </Link>
@@ -458,13 +462,13 @@ export function LotReview({ lot }: Props) {
               {/* Buy Now Price — read-only */}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Buy Now Price</span>
-                <span className="font-medium text-sm tabular-nums">GHS {(lot.buyNowPrice ?? 0).toFixed(2)}</span>
+                <span className="font-medium text-sm tabular-nums">GHS {lot.buyNowPrice.toFixed(2)}</span>
               </div>
               <Separator />
               {/* Reserve Price — read-only */}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Reserve Price</span>
-                <span className="font-medium text-sm tabular-nums">GHS {(lot.reservePrice ?? 0).toFixed(2)}</span>
+                <span className="font-medium text-sm tabular-nums">GHS {lot.reservePrice.toFixed(2)}</span>
               </div>
               <Separator />
               {/* MSRP — editable */}

@@ -42,4 +42,10 @@ export const FulfillmentServices = {
       method: "POST" as const,
     };
   },
+  RetryPayout(payoutId: number | string) {
+    return {
+      endpoint: `/api/admin/finance/payouts/${payoutId}/retry`,
+      method: "POST" as const,
+    };
+  },
 };

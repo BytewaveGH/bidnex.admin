@@ -1,6 +1,6 @@
 "use client";
 
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useSearchParams } from "next/navigation";
 
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
@@ -18,6 +18,8 @@ interface ApiLotResponse {
 
 export default function Page() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("from") ?? "/dashboard/vendor-lots";
   const { data: session, status: sessionStatus } = useSession();
   const token = session?.accessToken;
 
@@ -48,5 +50,5 @@ export default function Page() {
 
   if (!res?.data) return notFound();
 
-  return <LotReview lot={res.data} />;
+  return <LotReview lot={res.data} returnTo={returnTo} />;
 }
