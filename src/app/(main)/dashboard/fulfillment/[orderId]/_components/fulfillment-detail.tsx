@@ -10,12 +10,12 @@ import {
   AlertTriangle,
   Banknote,
   ChevronLeft,
-  CircleDollarSign,
   Mail,
   MapPin,
   Phone,
   Receipt,
   RefreshCw,
+  RotateCcw,
   Store,
   Truck,
   User,
@@ -47,6 +47,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
@@ -98,6 +99,24 @@ export function FulfillmentDetail({ order }: Props) {
   const [receiptOpen, setReceiptOpen] = React.useState(false);
   const parsedDeliveryFee = deliveryFee.trim() === "" ? NaN : Number(deliveryFee);
 
+  const [refundOpen, setRefundOpen] = React.useState(false);
+  const [refundReason, setRefundReason] = React.useState("");
+  const [refundPhone, setRefundPhone] = React.useState("");
+  const [refundProvider, setRefundProvider] = React.useState("");
+  const [refundError, setRefundError] = React.useState<string | null>(null);
+
+  const phoneHasValue = refundPhone.trim().length > 0;
+  const providerMissing = phoneHasValue && !refundProvider;
+  const canRefund = !["awaiting_payment", "cancelled", "completed"].includes(order.status);
+
+  function closeRefund() {
+    setRefundOpen(false);
+    setRefundReason("");
+    setRefundPhone("");
+    setRefundProvider("");
+    setRefundError(null);
+  }
+
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["admin-order-fulfillment", String(order.lotId)] });
 
@@ -144,6 +163,42 @@ export function FulfillmentDetail({ order }: Props) {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to release payment."),
   });
 
+  const retryPayoutMutation = useMutation({
+    mutationFn: () => {
+      const payoutId = order.settlement.payoutId ?? order.lotId;
+      const svc = FulfillmentServices.RetryPayout(payoutId);
+      return apiRequest(svc.endpoint, token, { method: svc.method });
+    },
+    onSuccess: () => {
+      toast.success("Payout retried — settlement is being processed.");
+      invalidate();
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to retry payout."),
+  });
+
+  const refundMutation = useMutation({
+    mutationFn: () => {
+      const svc = FulfillmentServices.Refund(order.lotId);
+      const body: Record<string, string> = { reason: refundReason.trim() };
+      if (phoneHasValue) body.phone = refundPhone.trim();
+      if (phoneHasValue && refundProvider) body.provider = refundProvider;
+      return apiRequest<{ data?: { amountRefunded: number; transferredTo?: string } }>(svc.endpoint, token, {
+        method: svc.method,
+        body,
+      });
+    },
+    onSuccess: (res) => {
+      const d = res?.data;
+      let msg = `Refund of GHS ${d?.amountRefunded ?? order.payment.amount} issued`;
+      if (d?.transferredTo) msg += ` · Sent to ${d.transferredTo}`;
+      toast.success(msg);
+      closeRefund();
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["admin-order-timeline", String(order.lotId)] });
+    },
+    onError: (err) => setRefundError(err instanceof Error ? err.message : "Failed to issue refund."),
+  });
+
   const statusMeta = orderStatusMeta[order.status];
   const deliveryMeta = order.delivery ? deliveryStatusMeta[order.delivery.status] : undefined;
   const settlementMeta = settlementStatusMeta[order.settlement.status];
@@ -171,8 +226,18 @@ export function FulfillmentDetail({ order }: Props) {
         </div>
 
         {/* Primary action — always visible at the top of the page */}
-        {action && (
+        {(action || canRefund) && (
           <div className="flex shrink-0 items-center gap-2">
+            {canRefund && (
+              <Button
+                variant="outline"
+                className="border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                onClick={() => setRefundOpen(true)}
+              >
+                <RotateCcw className="size-4" />
+                Refund
+              </Button>
+            )}
             {action === "initiate-delivery" && (
               <Button onClick={() => setInitiateOpen(true)}>
                 <Truck className="size-4" />
@@ -206,8 +271,17 @@ export function FulfillmentDetail({ order }: Props) {
                 className="bg-emerald-600 text-white hover:bg-emerald-700"
                 onClick={() => setReleaseConfirmOpen(true)}
               >
-                <CircleDollarSign className="size-4" />
-                Release Payment
+                Pay Vendor
+              </Button>
+            )}
+            {action === "retry-payout" && (
+              <Button
+                className="bg-amber-600 text-white hover:bg-amber-700"
+                disabled={retryPayoutMutation.isPending}
+                onClick={() => retryPayoutMutation.mutate()}
+              >
+                <RefreshCw className={retryPayoutMutation.isPending ? "animate-spin" : ""} />
+                {retryPayoutMutation.isPending ? "Retrying…" : "Retry Payout"}
               </Button>
             )}
             {action === "view-receipt" && (
@@ -233,7 +307,7 @@ export function FulfillmentDetail({ order }: Props) {
               {order.lot.images.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto">
                   {order.lot.images.map((src) => (
-                    // eslint-disable-next-line @next/next/no-img-element
+                    // biome-ignore lint/performance/noImgElement: external vendor image URLs without configured hostname
                     <img
                       key={src}
                       src={src}
@@ -534,6 +608,123 @@ export function FulfillmentDetail({ order }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Refund dialog */}
+      <Dialog
+        open={refundOpen}
+        onOpenChange={(open) => {
+          if (!open) closeRefund();
+          else setRefundOpen(true);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="size-4 text-destructive" />
+              Issue Refund
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="mt-1 rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2">
+                <span className="font-medium text-destructive text-sm">
+                  Refund {money(order.payment.amount)} to {order.buyer.name || `Buyer #${order.buyer.id}`}
+                </span>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4">
+            {/* Reason */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="refund-reason" className="font-medium text-sm">
+                Reason <span className="text-destructive">*</span>
+              </label>
+              <Textarea
+                id="refund-reason"
+                rows={3}
+                placeholder="Why is this refund being issued?"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                disabled={refundMutation.isPending}
+              />
+            </div>
+
+            {/* Phone */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="refund-phone" className="font-medium text-sm">
+                Phone Number
+                <span className="ml-1 font-normal text-muted-foreground text-xs">(optional)</span>
+              </label>
+              <Input
+                id="refund-phone"
+                type="tel"
+                placeholder={order.buyer.phone || "Buyer's registered number"}
+                value={refundPhone}
+                onChange={(e) => {
+                  setRefundPhone(e.target.value);
+                  setRefundProvider("");
+                }}
+                disabled={refundMutation.isPending}
+              />
+              {phoneHasValue && <p className="text-muted-foreground text-xs">Overrides buyer&apos;s default number</p>}
+            </div>
+
+            {/* Provider — only when phone is filled */}
+            {phoneHasValue && (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="refund-provider" className="font-medium text-sm">
+                  Provider <span className="text-destructive">*</span>
+                </label>
+                <Select value={refundProvider} onValueChange={setRefundProvider} disabled={refundMutation.isPending}>
+                  <SelectTrigger
+                    id="refund-provider"
+                    className={cn("w-full", providerMissing && "border-destructive focus:ring-destructive")}
+                  >
+                    <SelectValue placeholder="Select mobile network" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MTN">MTN</SelectItem>
+                    <SelectItem value="TELECEL">TELECEL</SelectItem>
+                    <SelectItem value="AT">AT</SelectItem>
+                  </SelectContent>
+                </Select>
+                {providerMissing && (
+                  <p className="text-destructive text-xs">Provider is required when a phone number is entered.</p>
+                )}
+              </div>
+            )}
+
+            {/* Inline API error */}
+            {refundError && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-destructive text-xs leading-relaxed">
+                {refundError}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeRefund} disabled={refundMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={refundMutation.isPending || !refundReason.trim() || providerMissing}
+              onClick={() => {
+                setRefundError(null);
+                refundMutation.mutate();
+              }}
+            >
+              {refundMutation.isPending ? (
+                <>
+                  <RefreshCw className="animate-spin" />
+                  Processing…
+                </>
+              ) : (
+                "Issue Refund"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Settlement receipt */}
       <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>

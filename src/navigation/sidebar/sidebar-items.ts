@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Lock,
   type LucideIcon,
+  Megaphone,
   Package,
   Server,
   Tag,
@@ -126,6 +127,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Fulfillment & Settlement",
         url: "/dashboard/fulfillment",
         icon: Truck,
+      },
+      {
+        id: "promotions",
+        title: "Promotions",
+        url: "/dashboard/promotions",
+        icon: Megaphone,
       },
       {
         id: "disputes",

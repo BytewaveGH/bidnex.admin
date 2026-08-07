@@ -15,11 +15,21 @@ import { Grid, Rows3, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Kbd } from "@/components/ui/kbd";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/api-client";
 
 import { type UserAccountType, UserAdminServices } from "../_logics/services";
@@ -75,7 +85,10 @@ export function Users() {
 
   // ── User detail sheet ──────────────────────────────────────────────────────
   const [viewUser, setViewUser] = React.useState<IAdminUser | null>(null);
-  const [startSuspending, setStartSuspending] = React.useState(false);
+
+  // ── Suspend dialog ─────────────────────────────────────────────────────────
+  const [suspendTarget, setSuspendTarget] = React.useState<IAdminUser | null>(null);
+  const [suspendReason, setSuspendReason] = React.useState("");
 
   // ── Suspend/activate loading ───────────────────────────────────────────────
   const [loadingUserId, setLoadingUserId] = React.useState<number | null>(null);
@@ -117,6 +130,22 @@ export function Users() {
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
   }
+
+  const suspendMutation = useMutation({
+    mutationFn: async ({ user, reason }: { user: IAdminUser; reason: string }) => {
+      const svc = UserAdminServices.Suspend(user.id, reason.trim() || "");
+      return apiRequest(svc.endpoint, token, { method: svc.method, body: svc.body });
+    },
+    onMutate: ({ user }) => setLoadingUserId(user.id),
+    onSuccess: (_, { user }) => {
+      toast.success(`${user.username} suspended.`);
+      setSuspendTarget(null);
+      setSuspendReason("");
+      invalidate();
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to suspend user."),
+    onSettled: () => setLoadingUserId(null),
+  });
 
   const activateMutation = useMutation({
     mutationFn: async (user: IAdminUser) => {
@@ -160,16 +189,14 @@ export function Users() {
     () =>
       makeUsersColumns({
         onSuspend: (user) => {
-          setStartSuspending(true);
-          setViewUser(user);
+          setSuspendTarget(user);
+          setSuspendReason("");
         },
         onActivate: (user) => activateMutation.mutate(user),
-        onView: (user) => {
-          setStartSuspending(false);
-          setViewUser(user);
-        },
+        onView: (user) => setViewUser(user),
         loadingUserId,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [loadingUserId, activateMutation.mutate],
   );
 
@@ -303,14 +330,63 @@ export function Users() {
       <UserDetailSheet
         user={viewUser}
         open={!!viewUser}
-        startSuspending={startSuspending}
         onOpenChange={(open) => {
-          if (!open) {
-            setViewUser(null);
-            setStartSuspending(false);
-          }
+          if (!open) setViewUser(null);
         }}
       />
+
+      {/* Suspend reason dialog */}
+      <Dialog
+        open={!!suspendTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSuspendTarget(null);
+            setSuspendReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Suspend {suspendTarget?.username}?</DialogTitle>
+            <DialogDescription>
+              This will prevent them from bidding or listing lots. You can reactivate the account at any time.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="suspend-reason" className="font-medium text-sm">
+              Reason
+              <span className="ml-1 font-normal text-muted-foreground text-xs">(optional)</span>
+            </label>
+            <Textarea
+              id="suspend-reason"
+              rows={3}
+              placeholder="e.g. suspicious bidding activity"
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+              disabled={suspendMutation.isPending}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSuspendTarget(null);
+                setSuspendReason("");
+              }}
+              disabled={suspendMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={suspendMutation.isPending}
+              onClick={() => suspendTarget && suspendMutation.mutate({ user: suspendTarget, reason: suspendReason })}
+            >
+              {suspendMutation.isPending ? "Suspending…" : "Suspend"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

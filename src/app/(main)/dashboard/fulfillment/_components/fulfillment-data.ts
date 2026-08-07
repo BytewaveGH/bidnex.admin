@@ -100,6 +100,7 @@ export interface FulfillmentSettlement {
   deliveryFee: number;
   transactionReference?: string | null;
   releasedAt?: string | null;
+  payoutId?: number | string | null;
 }
 
 export interface FulfillmentDetail {
@@ -240,9 +241,11 @@ export type AdminActionKind =
   | "mark-in-transit"
   | "mark-delivered"
   | "release-payment"
+  | "retry-payout"
   | "view-receipt";
 
 export function getAdminAction(order: FulfillmentDetail): AdminActionKind | null {
+  if (order.settlement.status === "failed") return "retry-payout";
   if (order.settlement.status === "released" || order.status === "completed") return "view-receipt";
 
   if (order.delivery) {

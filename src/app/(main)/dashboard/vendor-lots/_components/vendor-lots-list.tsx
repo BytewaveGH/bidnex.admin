@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { useQuery } from "@tanstack/react-query";
 import { type ColumnDef, flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
-import { ChevronDownIcon, Eye, ListFilter, Play, Video } from "lucide-react";
+import { ChevronDownIcon, ChevronsLeft, ChevronsRight, Eye, ListFilter, Play, Video } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +82,7 @@ function normaliseCategories(res: ApiCategoriesResponse): ICategory[] {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const reviewStatusOptions = ["all", "draft", "submitted", "approved", "rejected"] as const;
+const pageSizeOptions = [10, 25, 50] as const;
 
 const reviewStatusMeta: Record<LotReviewStatus, { label: string; className: string }> = {
   submitted: {
@@ -127,7 +128,7 @@ function makeColumns(onView: (id: number, e: React.MouseEvent) => void): ColumnD
           <div className="flex items-center gap-3">
             <div className="relative size-9 shrink-0">
               {thumbnail ? (
-                // eslint-disable-next-line @next/next/no-img-element
+                // biome-ignore lint/performance/noImgElement: external vendor image URLs without configured hostname
                 <img src={thumbnail} alt="" className="size-9 rounded-md border object-cover" />
               ) : (
                 <div className="grid size-9 place-items-center rounded-md border bg-muted">
@@ -228,7 +229,7 @@ export function VendorLotsList() {
 
   // ── Filter & pagination state (URL-backed so nav back restores position) ──
   const page = Number(searchParams.get("page") ?? "0");
-  const pageSize = 10;
+  const pageSize = Number(searchParams.get("limit") ?? "10");
   const reviewStatusFilter = searchParams.get("status") ?? "all";
   const search = searchParams.get("search") ?? "";
   const categoryId = searchParams.get("category") ?? "";
@@ -257,6 +258,10 @@ export function VendorLotsList() {
     if (e.key === "Enter") {
       updateParams({ search: searchInput || undefined, page: undefined });
     }
+  }
+
+  function handlePageSizeChange(value: string) {
+    updateParams({ limit: value === "10" ? undefined : value, page: undefined });
   }
 
   function handleUnassignedToggle() {
@@ -320,13 +325,16 @@ export function VendorLotsList() {
   const { lots, total } = React.useMemo(() => normalise(raw ?? {}), [raw]);
 
   // ── Columns ───────────────────────────────────────────────────────────────
+  const listHref = `/dashboard/vendor-lots${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+
   const columns = React.useMemo(
     () =>
       makeColumns((id, e) => {
         e.stopPropagation();
-        router.push(`/dashboard/vendor-lots/${id}`);
+        router.push(`/dashboard/vendor-lots/${id}?from=${encodeURIComponent(listHref)}`);
       }),
-    [router],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [router, listHref],
   );
 
   // ── Table ─────────────────────────────────────────────────────────────────
@@ -437,7 +445,7 @@ export function VendorLotsList() {
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 px-0">
-          <div className="overflow-hidden">
+          <div className="max-h-150 overflow-y-auto">
             <Table className="**:data-[slot='table-cell']:px-4 **:data-[slot='table-head']:px-4 **:data-[slot='table-cell']:py-4">
               <TableHeader className="border-t **:data-[slot='table-head']:h-11 **:data-[slot='table-head']:font-medium **:data-[slot='table-head']:text-foreground **:data-[slot='table-head']:text-sm">
                 {table.getHeaderGroups().map((hg) => (
@@ -451,27 +459,30 @@ export function VendorLotsList() {
                 ))}
               </TableHeader>
               <TableBody className="**:data-[slot='table-row']:border-border/50 **:data-[slot='table-row']:hover:bg-transparent">
-                {isLoading ? (
+                {isLoading &&
                   Array.from({ length: 5 }).map((_, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholder rows have no stable id
                     <TableRow key={i}>
                       <TableCell colSpan={columns.length} className="py-3">
                         <Skeleton className="h-5 w-full" />
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : table.getRowModel().rows.length ? (
+                  ))}
+                {!isLoading &&
                   table.getRowModel().rows.map((row) => (
                     <TableRow
                       key={row.id}
                       className="cursor-pointer"
-                      onClick={() => router.push(`/dashboard/vendor-lots/${row.original.id}`)}
+                      onClick={() =>
+                        router.push(`/dashboard/vendor-lots/${row.original.id}?from=${encodeURIComponent(listHref)}`)
+                      }
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                       ))}
                     </TableRow>
-                  ))
-                ) : (
+                  ))}
+                {!isLoading && !table.getRowModel().rows.length && (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center">
                       No results.
@@ -481,12 +492,41 @@ export function VendorLotsList() {
               </TableBody>
             </Table>
           </div>
-          <div className="flex items-center justify-between gap-4 px-4 pb-1">
-            <p className="text-muted-foreground text-sm">
-              {total} {total === 1 ? "lot" : "lots"}
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-1">
+            <div className="flex items-center gap-3">
+              <p className="text-muted-foreground text-sm">
+                {total} {total === 1 ? "lot" : "lots"}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground text-sm">Rows</span>
+                <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+                  <SelectTrigger className="h-7 w-16 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pageSizeOptions.map((n) => (
+                      <SelectItem key={n} value={String(n)} className="text-xs">
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <Pagination className="mx-0 w-auto justify-end">
               <PaginationContent className="gap-1.5">
+                <PaginationItem>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-9"
+                    disabled={!table.getCanPreviousPage()}
+                    onClick={() => table.setPageIndex(0)}
+                    aria-label="First page"
+                  >
+                    <ChevronsLeft className="size-4" />
+                  </Button>
+                </PaginationItem>
                 <PaginationItem>
                   <PaginationPrevious
                     href="#"
@@ -530,6 +570,18 @@ export function VendorLotsList() {
                       table.nextPage();
                     }}
                   />
+                </PaginationItem>
+                <PaginationItem>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-9"
+                    disabled={!table.getCanNextPage()}
+                    onClick={() => table.setPageIndex(pageCount - 1)}
+                    aria-label="Last page"
+                  >
+                    <ChevronsRight className="size-4" />
+                  </Button>
                 </PaginationItem>
               </PaginationContent>
             </Pagination>
