@@ -17,12 +17,8 @@ export const UserAdminServices = {
   FetchAll(params: FetchUsersParams) {
     return { endpoint: "/api/admin/users", params: params as unknown as Record<string, string | number | undefined> };
   },
-  Suspend(id: number, reason?: string) {
-    return {
-      endpoint: `/api/admin/users/${id}/suspend`,
-      method: "PUT" as const,
-      body: reason ? { reason } : undefined,
-    };
+  Suspend(id: number, reason: string) {
+    return { endpoint: `/api/admin/users/${id}/suspend`, method: "PUT" as const, body: { reason } };
   },
   Activate(id: number) {
     return { endpoint: `/api/admin/users/${id}/activate`, method: "PUT" as const };
