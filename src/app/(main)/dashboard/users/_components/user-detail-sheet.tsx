@@ -4,7 +4,7 @@
 import * as React from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Mail, Phone, X, XCircle } from "lucide-react";
+import { CheckCircle2, LayoutTemplate, Mail, Phone, X, XCircle } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -15,10 +15,12 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/api-client";
 import { cn, getInitials } from "@/lib/utils";
 
 import { RoleServices } from "../../roles/_logics/services";
+import { UserAdminServices } from "../_logics/services";
 import { accountTypeMeta, type IAdminUser, statusMeta } from "./data";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -65,6 +67,69 @@ const avatarTones = [
 
 function getAvatarTone(name: string) {
   return avatarTones[name.length % avatarTones.length];
+}
+
+const suspensionTemplates = [
+  {
+    label: "Policy Violation",
+    text: "Your account has been suspended due to a violation of our platform policies. Please contact support for more information.",
+  },
+  {
+    label: "Suspicious Activity",
+    text: "Your account has been suspended due to suspicious activity. Our team will review your account and follow up if needed.",
+  },
+  {
+    label: "Fraudulent Bids",
+    text: "Your account has been suspended due to fraudulent bidding activity on the platform.",
+  },
+  {
+    label: "Payment Issues",
+    text: "Your account has been suspended due to unresolved payment issues. Please clear outstanding balances and contact support.",
+  },
+  {
+    label: "Abuse / Harassment",
+    text: "Your account has been suspended due to abusive or harassing behaviour toward other users.",
+  },
+  {
+    label: "Multiple Accounts",
+    text: "Your account has been suspended for operating multiple accounts in violation of our terms of service.",
+  },
+];
+
+function SuspensionTemplatePicker({ onSelect }: { onSelect: (text: string) => void }) {
+  const [open, setOpen] = React.useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2 text-xs">
+          <LayoutTemplate className="size-3.5" />
+          Template
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-0">
+        <Command>
+          <CommandInput placeholder="Apply template..." />
+          <CommandList>
+            <CommandGroup heading="Suspension Reasons">
+              {suspensionTemplates.map((template) => (
+                <CommandItem
+                  key={template.label}
+                  value={template.label}
+                  onSelect={() => {
+                    onSelect(template.text);
+                    setOpen(false);
+                  }}
+                >
+                  {template.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ── Roles section ─────────────────────────────────────────────────────────────
@@ -198,16 +263,63 @@ interface UserDetailSheetProps {
   user: IAdminUser | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  startSuspending?: boolean;
 }
 
-export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetProps) {
+export function UserDetailSheet({ user, open, onOpenChange, startSuspending = false }: UserDetailSheetProps) {
   const { data: session } = useSession();
   const token = session?.accessToken;
+  const queryClient = useQueryClient();
+
+  const [suspending, setSuspending] = React.useState(false);
+  const [reason, setReason] = React.useState("");
+
+  React.useEffect(() => {
+    if (open && startSuspending && user?.status === "active") {
+      setSuspending(true);
+      setReason("");
+    }
+    if (!open) {
+      setSuspending(false);
+      setReason("");
+    }
+  }, [open, startSuspending, user?.status]);
+
+  const suspendMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      const svc = UserAdminServices.Suspend(user.id, reason.trim());
+      return apiRequest(svc.endpoint, token, { method: svc.method, body: svc.body });
+    },
+    onSuccess: () => {
+      toast.success(`${user?.username} suspended.`);
+      setSuspending(false);
+      setReason("");
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      onOpenChange(false);
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to suspend user."),
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      const svc = UserAdminServices.Activate(user.id);
+      return apiRequest(svc.endpoint, token, { method: svc.method });
+    },
+    onSuccess: () => {
+      toast.success(`${user?.username} activated.`);
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      onOpenChange(false);
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to activate user."),
+  });
 
   if (!user) return null;
 
   const typeMeta = accountTypeMeta[user.accountType];
   const sMeta = statusMeta[user.status];
+  const isSuspended = user.status === "suspended";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -298,6 +410,68 @@ export function UserDetailSheet({ user, open, onOpenChange }: UserDetailSheetPro
                 <UserRoles user={user} token={token} />
               </div>
             </>
+          )}
+        </div>
+
+        <div className="border-t p-5">
+          <p className="mb-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Account Actions</p>
+          {isSuspended && (
+            <Button
+              className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+              disabled={activateMutation.isPending}
+              onClick={() => activateMutation.mutate()}
+            >
+              <CheckCircle2 className="size-4" />
+              {activateMutation.isPending ? "Activating…" : "Activate User"}
+            </Button>
+          )}
+          {!isSuspended && suspending && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="suspension-reason" className="font-medium text-sm">
+                    Suspension Reason
+                  </label>
+                  <SuspensionTemplatePicker onSelect={setReason} />
+                </div>
+                <Textarea
+                  id="suspension-reason"
+                  placeholder="Explain why this user is being suspended..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="min-h-28 resize-none"
+                />
+              </div>
+              <Button
+                variant="destructive"
+                disabled={!reason.trim() || suspendMutation.isPending}
+                onClick={() => suspendMutation.mutate()}
+                className="w-full"
+              >
+                <XCircle className="size-4" />
+                {suspendMutation.isPending ? "Suspending…" : "Confirm Suspension"}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={suspendMutation.isPending}
+                onClick={() => {
+                  setSuspending(false);
+                  setReason("");
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+          {!isSuspended && !suspending && (
+            <Button
+              variant="outline"
+              className="w-full border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
+              onClick={() => setSuspending(true)}
+            >
+              Suspend User
+            </Button>
           )}
         </div>
       </SheetContent>

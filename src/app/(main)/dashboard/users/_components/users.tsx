@@ -35,7 +35,7 @@ interface ApiUsersResponse {
 }
 
 function normalise(res: ApiUsersResponse): { users: IAdminUser[]; total: number } {
-  const inner = res?.data;
+  const inner = res.data;
   if (Array.isArray(inner)) return { users: inner, total: inner.length };
   const users = inner?.data ?? [];
   const total = inner?.count ?? users.length;
@@ -75,6 +75,7 @@ export function Users() {
 
   // ── User detail sheet ──────────────────────────────────────────────────────
   const [viewUser, setViewUser] = React.useState<IAdminUser | null>(null);
+  const [startSuspending, setStartSuspending] = React.useState(false);
 
   // ── Suspend/activate loading ───────────────────────────────────────────────
   const [loadingUserId, setLoadingUserId] = React.useState<number | null>(null);
@@ -117,20 +118,6 @@ export function Users() {
     void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
   }
 
-  const suspendMutation = useMutation({
-    mutationFn: async (user: IAdminUser) => {
-      const svc = UserAdminServices.Suspend(user.id);
-      return apiRequest(svc.endpoint, token, { method: svc.method });
-    },
-    onMutate: (user) => setLoadingUserId(user.id),
-    onSuccess: (_, user) => {
-      toast.success(`${user.username} suspended.`);
-      invalidate();
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to suspend user."),
-    onSettled: () => setLoadingUserId(null),
-  });
-
   const activateMutation = useMutation({
     mutationFn: async (user: IAdminUser) => {
       const svc = UserAdminServices.Activate(user.id);
@@ -172,13 +159,18 @@ export function Users() {
   const cols = React.useMemo(
     () =>
       makeUsersColumns({
-        onSuspend: (user) => suspendMutation.mutate(user),
+        onSuspend: (user) => {
+          setStartSuspending(true);
+          setViewUser(user);
+        },
         onActivate: (user) => activateMutation.mutate(user),
-        onView: (user) => setViewUser(user),
+        onView: (user) => {
+          setStartSuspending(false);
+          setViewUser(user);
+        },
         loadingUserId,
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [loadingUserId, suspendMutation.mutate, activateMutation.mutate],
+    [loadingUserId, activateMutation.mutate],
   );
 
   // ── Table ─────────────────────────────────────────────────────────────────
@@ -311,8 +303,12 @@ export function Users() {
       <UserDetailSheet
         user={viewUser}
         open={!!viewUser}
+        startSuspending={startSuspending}
         onOpenChange={(open) => {
-          if (!open) setViewUser(null);
+          if (!open) {
+            setViewUser(null);
+            setStartSuspending(false);
+          }
         }}
       />
     </>
