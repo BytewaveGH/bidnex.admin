@@ -53,7 +53,7 @@ export interface FulfillmentOrderSummary {
   amount: number;
   status: OrderStatus;
   paidAt: string | null;
-  createdAt: string;
+  lotEndedAt: string | null;
 }
 
 export interface FulfillmentBuyer {
