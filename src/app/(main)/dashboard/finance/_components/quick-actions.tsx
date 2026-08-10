@@ -1,37 +1,34 @@
-import {
-  Banknote,
-  ChevronRight,
-  Droplet,
-  History,
-  Lightbulb,
-  MoreHorizontal,
-  QrCode,
-  SendHorizontal,
-  Smartphone,
-} from "lucide-react";
+import Link from "next/link";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AlertCircle, Clock, Gavel, Megaphone, Package, ShieldAlert, Truck, Users } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field } from "@/components/ui/field";
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const contacts = [
-  { id: 1, initials: "AR" },
-  { id: 2, initials: "SC" },
-  { id: 3, initials: "MJ" },
-  { id: 4, initials: "ED" },
+const payoutShortcuts = [
+  {
+    id: "failed",
+    label: "Failed",
+    icon: AlertCircle,
+    href: "/dashboard/finance?tab=transactions&status=failed",
+    className: "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10",
+  },
+  {
+    id: "pending",
+    label: "Pending",
+    icon: Clock,
+    href: "/dashboard/finance?tab=transactions&status=pending_review",
+    className: "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10",
+  },
 ];
 
-const shortcuts = [
-  { id: 1, label: "Scan QR", icon: QrCode },
-  { id: 2, label: "Transfer", icon: SendHorizontal },
-  { id: 3, label: "Pay Bills", icon: Banknote },
-  { id: 4, label: "History", icon: History },
-  { id: 5, label: "Mobile", icon: Smartphone },
-  { id: 6, label: "Electricity", icon: Lightbulb },
-  { id: 7, label: "Water", icon: Droplet },
-  { id: 8, label: "More", icon: MoreHorizontal },
+const adminShortcuts = [
+  { id: 1, label: "Fulfillment", icon: Truck, href: "/dashboard/fulfillment" },
+  { id: 2, label: "Vendor Lots", icon: Package, href: "/dashboard/vendor-lots" },
+  { id: 3, label: "Auctions", icon: Gavel, href: "/dashboard/auctions" },
+  { id: 4, label: "Disputes", icon: ShieldAlert, href: "/dashboard/disputes" },
+  { id: 5, label: "Promotions", icon: Megaphone, href: "/dashboard/promotions" },
+  { id: 6, label: "Users", icon: Users, href: "/dashboard/users" },
 ];
 
 export function QuickActions() {
@@ -39,51 +36,38 @@ export function QuickActions() {
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle className="font-normal">Quick Transfer</CardTitle>
-          <CardAction>
-            <div className="flex items-center gap-1">
-              <div className="flex -space-x-2">
-                {contacts.map((contact) => (
-                  <Avatar key={contact.id} className="size-7 border-2 border-background">
-                    <AvatarFallback className="text-[10px]">{contact.initials}</AvatarFallback>
-                  </Avatar>
-                ))}
-              </div>
-              <ChevronRight className="size-4" />
-            </div>
-          </CardAction>
+          <CardTitle className="font-normal">Payout Status</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Field orientation="horizontal">
-            <InputGroup>
-              <InputGroupAddon>
-                <InputGroupText>$</InputGroupText>
-              </InputGroupAddon>
-              <InputGroupInput placeholder="0.00" />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText>USD</InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
-            <Button>Send</Button>
-          </Field>
+        <CardContent className="flex gap-3">
+          {payoutShortcuts.map((s) => {
+            const Icon = s.icon;
+            return (
+              <Button key={s.id} variant="outline" className={`flex-1 gap-2 ${s.className}`} asChild>
+                <Link href={s.href}>
+                  <Icon className="size-4" />
+                  {s.label}
+                </Link>
+              </Button>
+            );
+          })}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-normal">Shortcuts</CardTitle>
+          <CardTitle className="font-normal">Admin Shortcuts</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-4">
-            {shortcuts.map((shortcut) => {
-              const Icon = shortcut.icon;
+          <div className="grid grid-cols-3 gap-4">
+            {adminShortcuts.map((s) => {
+              const Icon = s.icon;
               return (
-                <div key={shortcut.id} className="flex flex-col items-center gap-2.5">
-                  <Button variant="outline" className="size-12 rounded-full">
-                    <Icon className="size-5" />
-                  </Button>
-                  <span className="text-center text-muted-foreground text-xs">{shortcut.label}</span>
-                </div>
+                <Link key={s.id} href={s.href} className="flex flex-col items-center gap-2.5">
+                  <div className="flex size-12 items-center justify-center rounded-full border bg-muted transition-colors hover:bg-muted/80">
+                    <Icon className="size-5 text-muted-foreground" />
+                  </div>
+                  <span className="text-center text-muted-foreground text-xs">{s.label}</span>
+                </Link>
               );
             })}
           </div>

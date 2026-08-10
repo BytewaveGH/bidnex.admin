@@ -1,113 +1,111 @@
-import { siBarclays, siBitcoin, siEthereum, siHsbc, siRevolut } from "simple-icons";
+"use client";
 
-import { SimpleIcon } from "@/components/simple-icon";
+import { useQuery } from "@tanstack/react-query";
+import { Banknote, CircleDollarSign, PercentSquare, TrendingUp } from "lucide-react";
+import { useSession } from "next-auth/react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { apiRequest } from "@/lib/api-client";
 
-const walletCards = [
-  {
-    id: 1,
-    bank: "Revolut Premium",
-    last4: "4182",
-    balance: "$12,450.60",
-    icon: siRevolut,
-    iconColor: "fill-foreground",
-  },
-  {
-    id: 2,
-    bank: "HSBC Bank",
-    last4: "1004",
-    balance: "$3,200.11",
-    icon: siHsbc,
-    iconColor: "fill-foreground",
-  },
+import { FinanceServices, type FinanceStats } from "../_logics/services";
 
-  {
-    id: 4,
-    bank: "Barclays Bank",
-    last4: "9912",
-    balance: "$1,450.00",
-    icon: siBarclays,
-    iconColor: "fill-foreground",
-  },
-];
+interface ApiStatsResponse {
+  data?: FinanceStats;
+}
 
-const cryptoAssets = [
-  {
-    id: 1,
-    name: "Bitcoin",
-    vault: "Binance",
-    balance: "0.42 BTC",
-    usdValue: "$24,150.00",
-    icon: siBitcoin,
-  },
-  {
-    id: 2,
-    name: "Ethereum",
-    vault: "MetaMask",
-    balance: "4.85 ETH",
-    usdValue: "$12,420.10",
-    icon: siEthereum,
-  },
+function money(n: number) {
+  return `GHS ${n.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+const paymentChannels = [
+  { id: 1, name: "MTN Mobile Money", note: "Primary mobile channel" },
+  { id: 2, name: "Telecel Cash", note: "Secondary mobile channel" },
+  { id: 3, name: "AirtelTigo Money", note: "Mobile money" },
+  { id: 4, name: "Bank Transfer", note: "GCB · Ecobank · Fidelity" },
 ];
 
 export function Wallet() {
+  const { data: session, status: sessionStatus } = useSession();
+  const token = session?.accessToken;
+
+  const { data: res, isLoading } = useQuery({
+    queryKey: ["admin-finance-stats"],
+    queryFn: () => apiRequest<ApiStatsResponse>(FinanceServices.FetchStats().endpoint, token),
+    enabled: sessionStatus === "authenticated",
+    staleTime: 30_000,
+  });
+
+  const stats = res?.data;
+  const avgPayout = stats && stats.successfulPayouts > 0 ? stats.totalTransferred / stats.successfulPayouts : 0;
+  const takeRate =
+    stats && stats.totalVolume > 0 ? ((stats.totalPlatformFees / stats.totalVolume) * 100).toFixed(1) : "—";
+
+  const metrics = [
+    {
+      id: 1,
+      label: "Gross Volume",
+      value: isLoading ? null : money(stats?.totalVolume ?? 0),
+      icon: TrendingUp,
+    },
+    {
+      id: 2,
+      label: "Net to Vendors",
+      value: isLoading ? null : money(stats?.totalTransferred ?? 0),
+      icon: Banknote,
+    },
+    {
+      id: 3,
+      label: "Avg Payout",
+      value: isLoading ? null : money(avgPayout),
+      icon: CircleDollarSign,
+    },
+    {
+      id: 4,
+      label: "Platform Take Rate",
+      value: isLoading ? null : `${takeRate}%`,
+      icon: PercentSquare,
+    },
+  ];
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal">Wallet</CardTitle>
+        <CardTitle className="font-normal">Platform Snapshot</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4">
-          {walletCards.map((card) => (
-            <div key={card.id} className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-3">
+          {metrics.map((m) => {
+            const Icon = m.icon;
+            return (
+              <div key={m.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground text-sm leading-none">
-                    {card.bank} • **** {card.last4}
-                  </span>
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted">
+                    <Icon className="size-4 text-muted-foreground" />
+                  </div>
+                  <span className="text-muted-foreground text-sm">{m.label}</span>
                 </div>
-                <span className="font-normal text-muted-foreground text-xs">{card.balance}</span>
+                {isLoading ? (
+                  <Skeleton className="h-4 w-24" />
+                ) : (
+                  <span className="font-medium text-sm tabular-nums">{m.value}</span>
+                )}
               </div>
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-background">
-                <SimpleIcon icon={card.icon} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <Separator />
 
-        <div className="flex flex-col gap-4">
-          {cryptoAssets.map((asset) => (
-            <div key={asset.id} className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground text-sm leading-none">
-                    {asset.name} • {asset.vault}
-                  </span>
-                </div>
-                <span className="font-normal text-muted-foreground text-xs">
-                  {asset.balance} • {asset.usdValue}
-                </span>
-              </div>
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-background">
-                <SimpleIcon icon={asset.icon} />
-              </div>
+        <div className="flex flex-col gap-1">
+          <p className="mb-1 text-muted-foreground text-xs">Payment Channels</p>
+          {paymentChannels.map((ch) => (
+            <div key={ch.id} className="flex items-center justify-between py-0.5">
+              <span className="font-medium text-sm">{ch.name}</span>
+              <span className="text-muted-foreground text-xs">{ch.note}</span>
             </div>
           ))}
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="font-medium text-[10px] text-muted-foreground">
-              Physical Vault: <span className="text-foreground">Ledger Nano X</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="size-1 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-            <span className="font-bold text-[9px] text-green-500 uppercase tracking-widest">Air-Gapped</span>
-          </div>
         </div>
       </CardContent>
     </Card>
