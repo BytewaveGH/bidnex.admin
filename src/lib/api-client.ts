@@ -26,8 +26,10 @@ export async function apiRequest<T = unknown>(
     if (str) url += `?${str}`;
   }
 
+  const isFormData = body instanceof FormData;
+
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     "X-Tenant-Domain": TENANT_DOMAIN,
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(extraHeaders as Record<string, string>),
@@ -36,7 +38,7 @@ export async function apiRequest<T = unknown>(
   const res = await fetch(url, {
     ...rest,
     headers,
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    ...(body !== undefined ? { body: isFormData ? (body as FormData) : JSON.stringify(body) } : {}),
   });
 
   if (!res.ok) {
