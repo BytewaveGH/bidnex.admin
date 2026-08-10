@@ -34,6 +34,7 @@ import { apiRequest } from "@/lib/api-client";
 
 import { type UserAccountType, UserAdminServices } from "../_logics/services";
 import type { IAdminUser } from "./data";
+import { SuspensionTemplatePicker } from "./suspension-template-picker";
 import { UserDetailSheet } from "./user-detail-sheet";
 import { makeUsersColumns } from "./users-columns";
 import { UsersTable } from "./users-table";
@@ -353,17 +354,21 @@ export function Users() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="suspend-reason" className="font-medium text-sm">
-              Reason
-              <span className="ml-1 font-normal text-muted-foreground text-xs">(optional)</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="suspend-reason" className="font-medium text-sm">
+                Reason
+                <span className="ml-1 font-normal text-muted-foreground text-xs">(optional)</span>
+              </label>
+              <SuspensionTemplatePicker onSelect={setSuspendReason} />
+            </div>
             <Textarea
               id="suspend-reason"
-              rows={3}
+              rows={4}
               placeholder="e.g. suspicious bidding activity"
               value={suspendReason}
               onChange={(e) => setSuspendReason(e.target.value)}
               disabled={suspendMutation.isPending}
+              className="resize-none"
             />
           </div>
           <DialogFooter>
