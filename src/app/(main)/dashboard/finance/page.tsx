@@ -4,12 +4,14 @@ import { Download, RotateCw, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { AccountsTable } from "./_components/accounts-table";
 import { BalanceDistributionCard } from "./_components/balance-distribution-card";
 import { FinanceNotification } from "./_components/finance-notification";
 import { IncomeBreakdown } from "./_components/income-breakdown";
 import { OverviewKpis } from "./_components/overview-kpis";
 import { QuickActions } from "./_components/quick-actions";
 import { TransactionsOverviewCard } from "./_components/transactions-overview-card";
+import { TransactionsTable } from "./_components/transactions-table";
 import { UpcomingTransactions } from "./_components/upcoming-transactions";
 import { Wallet } from "./_components/wallet";
 
@@ -23,12 +25,12 @@ export default function Page() {
         <p className="text-muted-foreground text-sm">{formattedDate}</p>
       </div>
 
-      <Tabs defaultValue="30-days" className="flex flex-col gap-4">
+      <Tabs defaultValue="dashboard" className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <TabsList variant="line">
-            <TabsTrigger value="30-days">Dashboard</TabsTrigger>
-            <TabsTrigger value="12-months">Accounts</TabsTrigger>
-            <TabsTrigger value="custom">Transactions</TabsTrigger>
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="accounts">Accounts</TabsTrigger>
+            <TabsTrigger value="transactions">Transactions</TabsTrigger>
           </TabsList>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -47,7 +49,7 @@ export default function Page() {
           </div>
         </div>
 
-        <TabsContent value="30-days" className="flex flex-col gap-4">
+        <TabsContent value="dashboard" className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             <div className="xl:col-span-6">
               <OverviewKpis />
@@ -81,16 +83,12 @@ export default function Page() {
           </div>
         </TabsContent>
 
-        <TabsContent value="12-months">
-          <div className="flex h-64 items-center justify-center rounded-xl border border-border border-dashed text-muted-foreground">
-            Accounts view coming soon.
-          </div>
+        <TabsContent value="accounts">
+          <AccountsTable />
         </TabsContent>
 
-        <TabsContent value="custom">
-          <div className="flex h-64 items-center justify-center rounded-xl border border-border border-dashed text-muted-foreground">
-            Transactions view coming soon.
-          </div>
+        <TabsContent value="transactions">
+          <TransactionsTable />
         </TabsContent>
       </Tabs>
     </div>

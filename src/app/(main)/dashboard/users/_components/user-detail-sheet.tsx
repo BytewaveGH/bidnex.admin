@@ -4,7 +4,7 @@
 import * as React from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, LayoutTemplate, Mail, Phone, X, XCircle } from "lucide-react";
+import { CheckCircle2, Mail, Phone, ShoppingBag, X, XCircle } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -22,6 +22,8 @@ import { cn, getInitials } from "@/lib/utils";
 import { RoleServices } from "../../roles/_logics/services";
 import { UserAdminServices } from "../_logics/services";
 import { accountTypeMeta, type IAdminUser, statusMeta } from "./data";
+import { NewProductSheet } from "./new-product-sheet";
+import { SuspensionTemplatePicker } from "./suspension-template-picker";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,69 +69,6 @@ const avatarTones = [
 
 function getAvatarTone(name: string) {
   return avatarTones[name.length % avatarTones.length];
-}
-
-const suspensionTemplates = [
-  {
-    label: "Policy Violation",
-    text: "Your account has been suspended due to a violation of our platform policies. Please contact support for more information.",
-  },
-  {
-    label: "Suspicious Activity",
-    text: "Your account has been suspended due to suspicious activity. Our team will review your account and follow up if needed.",
-  },
-  {
-    label: "Fraudulent Bids",
-    text: "Your account has been suspended due to fraudulent bidding activity on the platform.",
-  },
-  {
-    label: "Payment Issues",
-    text: "Your account has been suspended due to unresolved payment issues. Please clear outstanding balances and contact support.",
-  },
-  {
-    label: "Abuse / Harassment",
-    text: "Your account has been suspended due to abusive or harassing behaviour toward other users.",
-  },
-  {
-    label: "Multiple Accounts",
-    text: "Your account has been suspended for operating multiple accounts in violation of our terms of service.",
-  },
-];
-
-function SuspensionTemplatePicker({ onSelect }: { onSelect: (text: string) => void }) {
-  const [open, setOpen] = React.useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2 text-xs">
-          <LayoutTemplate className="size-3.5" />
-          Template
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 p-0">
-        <Command>
-          <CommandInput placeholder="Apply template..." />
-          <CommandList>
-            <CommandGroup heading="Suspension Reasons">
-              {suspensionTemplates.map((template) => (
-                <CommandItem
-                  key={template.label}
-                  value={template.label}
-                  onSelect={() => {
-                    onSelect(template.text);
-                    setOpen(false);
-                  }}
-                >
-                  {template.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
 }
 
 // ── Roles section ─────────────────────────────────────────────────────────────
@@ -273,6 +212,7 @@ export function UserDetailSheet({ user, open, onOpenChange, startSuspending = fa
 
   const [suspending, setSuspending] = React.useState(false);
   const [reason, setReason] = React.useState("");
+  const [creatingLot, setCreatingLot] = React.useState(false);
 
   React.useEffect(() => {
     if (open && startSuspending && user?.status === "active") {
@@ -322,159 +262,178 @@ export function UserDetailSheet({ user, open, onOpenChange, startSuspending = fa
   const isSuspended = user.status === "suspended";
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-md">
-        <SheetHeader className="border-b p-5 pb-4">
-          <div className="flex items-center gap-3">
-            <Avatar size="lg" className={cn("shrink-0 font-semibold text-base", getAvatarTone(user.username))}>
-              <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <SheetTitle className="truncate">{user.username}</SheetTitle>
-              <SheetDescription className="truncate">{user.email}</SheetDescription>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" className="flex flex-col gap-0 p-0 sm:max-w-md">
+          <SheetHeader className="border-b p-5 pb-4">
+            <div className="flex items-center gap-3">
+              <Avatar size="lg" className={cn("shrink-0 font-semibold text-base", getAvatarTone(user.username))}>
+                <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <SheetTitle className="truncate">{user.username}</SheetTitle>
+                <SheetDescription className="truncate">{user.email}</SheetDescription>
+              </div>
             </div>
-          </div>
-        </SheetHeader>
+          </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-5">
-          <div className="py-1">
-            <div className="divide-y divide-border/60">
-              <InfoRow label="User ID">
-                <span className="font-mono text-muted-foreground text-xs">#{user.id}</span>
-              </InfoRow>
+          <div className="flex-1 overflow-y-auto px-5">
+            <div className="py-1">
+              <div className="divide-y divide-border/60">
+                <InfoRow label="User ID">
+                  <span className="font-mono text-muted-foreground text-xs">#{user.id}</span>
+                </InfoRow>
 
-              <InfoRow label="Account type">
-                <Badge className={cn("rounded-full border font-medium", typeMeta.badgeClass)} variant="outline">
-                  {typeMeta.label}
-                </Badge>
-              </InfoRow>
+                <InfoRow label="Account type">
+                  <Badge className={cn("rounded-full border font-medium", typeMeta.badgeClass)} variant="outline">
+                    {typeMeta.label}
+                  </Badge>
+                </InfoRow>
 
-              <InfoRow label="Status">
-                <Badge
-                  className={cn("gap-1.5 border px-2 py-1 font-medium capitalize", sMeta.badgeClass)}
-                  variant="outline"
-                >
-                  <span className={cn("size-1.5 rounded-full", sMeta.dotClass)} />
-                  {user.status}
-                </Badge>
-              </InfoRow>
+                <InfoRow label="Status">
+                  <Badge
+                    className={cn("gap-1.5 border px-2 py-1 font-medium capitalize", sMeta.badgeClass)}
+                    variant="outline"
+                  >
+                    <span className={cn("size-1.5 rounded-full", sMeta.dotClass)} />
+                    {user.status}
+                  </Badge>
+                </InfoRow>
 
-              <InfoRow label="Verified">
-                {user.isVerified ? (
-                  <span className="flex items-center justify-end gap-1.5 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="size-4" />
-                    Verified
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-end gap-1.5 text-muted-foreground">
-                    <XCircle className="size-4" />
-                    Not verified
-                  </span>
-                )}
-              </InfoRow>
+                <InfoRow label="Verified">
+                  {user.isVerified ? (
+                    <span className="flex items-center justify-end gap-1.5 text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="size-4" />
+                      Verified
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-end gap-1.5 text-muted-foreground">
+                      <XCircle className="size-4" />
+                      Not verified
+                    </span>
+                  )}
+                </InfoRow>
 
-              <InfoRow label="Joined">{formatDate(user.createdAt)}</InfoRow>
+                <InfoRow label="Joined">{formatDate(user.createdAt)}</InfoRow>
+              </div>
             </div>
-          </div>
 
-          <Separator className="my-1" />
+            <Separator className="my-1" />
 
-          <div className="py-1">
-            <p className="pt-2 pb-1 font-medium text-muted-foreground text-xs uppercase tracking-wider">Contact</p>
-            <div className="divide-y divide-border/60">
-              <InfoRow label="Email">
-                <a href={`mailto:${user.email}`} className="flex items-center gap-1.5 text-primary hover:underline">
-                  <Mail className="size-3.5" />
-                  {user.email}
-                </a>
-              </InfoRow>
-
-              <InfoRow label="Phone">
-                {user.phone ? (
-                  <a href={`tel:${user.phone}`} className="flex items-center gap-1.5 text-primary hover:underline">
-                    <Phone className="size-3.5" />
-                    {user.phone}
+            <div className="py-1">
+              <p className="pt-2 pb-1 font-medium text-muted-foreground text-xs uppercase tracking-wider">Contact</p>
+              <div className="divide-y divide-border/60">
+                <InfoRow label="Email">
+                  <a href={`mailto:${user.email}`} className="flex items-center gap-1.5 text-primary hover:underline">
+                    <Mail className="size-3.5" />
+                    {user.email}
                   </a>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </InfoRow>
+                </InfoRow>
+
+                <InfoRow label="Phone">
+                  {user.phone ? (
+                    <a href={`tel:${user.phone}`} className="flex items-center gap-1.5 text-primary hover:underline">
+                      <Phone className="size-3.5" />
+                      {user.phone}
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </InfoRow>
+              </div>
             </div>
+
+            {/* Roles section — only shown for admin users */}
+            {user.accountType === "admin" && (
+              <>
+                <Separator className="my-1" />
+                <div className="pb-4">
+                  <UserRoles user={user} token={token} />
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Roles section — only shown for admin users */}
-          {user.accountType === "admin" && (
-            <>
-              <Separator className="my-1" />
-              <div className="pb-4">
-                <UserRoles user={user} token={token} />
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="border-t p-5">
-          <p className="mb-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Account Actions</p>
-          {isSuspended && (
-            <Button
-              className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
-              disabled={activateMutation.isPending}
-              onClick={() => activateMutation.mutate()}
-            >
-              <CheckCircle2 className="size-4" />
-              {activateMutation.isPending ? "Activating…" : "Activate User"}
-            </Button>
-          )}
-          {!isSuspended && suspending && (
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="suspension-reason" className="font-medium text-sm">
-                    Suspension Reason
-                  </label>
-                  <SuspensionTemplatePicker onSelect={setReason} />
-                </div>
-                <Textarea
-                  id="suspension-reason"
-                  placeholder="Explain why this user is being suspended..."
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  className="min-h-28 resize-none"
-                />
-              </div>
-              <Button
-                variant="destructive"
-                disabled={!reason.trim() || suspendMutation.isPending}
-                onClick={() => suspendMutation.mutate()}
-                className="w-full"
-              >
-                <XCircle className="size-4" />
-                {suspendMutation.isPending ? "Suspending…" : "Confirm Suspension"}
+          {user.accountType === "vendor" && (
+            <div className="border-t p-5">
+              <p className="mb-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Vendor Actions</p>
+              <Button variant="outline" className="w-full" onClick={() => setCreatingLot(true)}>
+                <ShoppingBag className="size-4" />
+                Create Lot
               </Button>
+            </div>
+          )}
+
+          <div className="border-t p-5">
+            <p className="mb-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">Account Actions</p>
+            {isSuspended && (
+              <Button
+                className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+                disabled={activateMutation.isPending}
+                onClick={() => activateMutation.mutate()}
+              >
+                <CheckCircle2 className="size-4" />
+                {activateMutation.isPending ? "Activating…" : "Activate User"}
+              </Button>
+            )}
+            {!isSuspended && suspending && (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="suspension-reason" className="font-medium text-sm">
+                      Suspension Reason
+                    </label>
+                    <SuspensionTemplatePicker onSelect={setReason} />
+                  </div>
+                  <Textarea
+                    id="suspension-reason"
+                    placeholder="Explain why this user is being suspended..."
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="min-h-28 resize-none"
+                  />
+                </div>
+                <Button
+                  variant="destructive"
+                  disabled={!reason.trim() || suspendMutation.isPending}
+                  onClick={() => suspendMutation.mutate()}
+                  className="w-full"
+                >
+                  <XCircle className="size-4" />
+                  {suspendMutation.isPending ? "Suspending…" : "Confirm Suspension"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={suspendMutation.isPending}
+                  onClick={() => {
+                    setSuspending(false);
+                    setReason("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+            {!isSuspended && !suspending && (
               <Button
                 variant="outline"
-                className="w-full"
-                disabled={suspendMutation.isPending}
-                onClick={() => {
-                  setSuspending(false);
-                  setReason("");
-                }}
+                className="w-full border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                onClick={() => setSuspending(true)}
               >
-                Cancel
+                Suspend User
               </Button>
-            </div>
-          )}
-          {!isSuspended && !suspending && (
-            <Button
-              variant="outline"
-              className="w-full border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
-              onClick={() => setSuspending(true)}
-            >
-              Suspend User
-            </Button>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <NewProductSheet
+        open={creatingLot}
+        onOpenChange={setCreatingLot}
+        vendor={user}
+        onSuccess={() => void queryClient.invalidateQueries({ queryKey: ["admin-users"] })}
+      />
+    </>
   );
 }
