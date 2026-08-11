@@ -29,7 +29,7 @@ export function useUploadVendorLotImages() {
         formData.append("images", file);
       }
 
-      return await apiRequest<UploadVendorLotImagesApiResponse>(`/api/vendor/lots/${lotId}/images`, token, {
+      return await apiRequest<UploadVendorLotImagesApiResponse>(`/api/admin/lots/${lotId}/images`, token, {
         method: "POST",
         body: formData,
       });
