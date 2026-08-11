@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpDown,
   Bell,
@@ -46,6 +46,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,10 +55,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiRequest } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
+import { VendorLotServices } from "../../vendor-lots/_logics/services";
 import { AuctionServices } from "../_logics/services";
 import type { IAuction, IAuctionLot } from "./auction-data";
 
@@ -114,6 +118,139 @@ function computeMetrics(lot: IAuctionLot) {
 
 function formatCondition(condition: string): string {
   return condition.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// ── Inject Lot Dialog ─────────────────────────────────────────────────────────
+
+interface UnassignedLot {
+  id: number;
+  title: string;
+  condition: string;
+  category: { name: string };
+  vendorId: number;
+  primaryImage?: string | null;
+}
+
+interface UnassignedLotsResponse {
+  data?: { data?: UnassignedLot[] };
+}
+
+export function InjectLotDialog({
+  auctionId,
+  auctionStatus,
+  open,
+  onOpenChange,
+  onSuccess,
+}: {
+  auctionId: number;
+  auctionStatus: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}) {
+  const { data: session } = useSession();
+  const token = session?.accessToken;
+  const [search, setSearch] = useState("");
+  const [injectingId, setInjectingId] = useState<number | null>(null);
+
+  const { data: res, isLoading } = useQuery({
+    queryKey: ["admin-lots-unassigned"],
+    queryFn: () => {
+      const svc = VendorLotServices.FetchUnassigned({ page: 1, limit: 100 });
+      return apiRequest<UnassignedLotsResponse>(svc.endpoint, token, { params: svc.params });
+    },
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  const lots = res?.data?.data ?? [];
+  const filtered = search.trim() ? lots.filter((l) => l.title.toLowerCase().includes(search.toLowerCase())) : lots;
+
+  async function handleInject(lotId: number) {
+    setInjectingId(lotId);
+    try {
+      const svc = AuctionServices.InjectLot(auctionId, lotId);
+      await apiRequest(svc.endpoint, token, { method: "POST" });
+      const isActive = auctionStatus === "active";
+      toast.success(isActive ? "Lot added and now live." : "Lot assigned — will go live when the auction starts.");
+      onOpenChange(false);
+      setSearch("");
+      onSuccess();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add lot.");
+    } finally {
+      setInjectingId(null);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) setSearch("");
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="max-w-lg gap-4">
+        <DialogHeader>
+          <DialogTitle>Add Lot to Auction</DialogTitle>
+          <DialogDescription>Select an approved lot from the unassigned pool.</DialogDescription>
+        </DialogHeader>
+        <Input placeholder="Search lots…" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus />
+        <ScrollArea className="max-h-[420px] rounded-md border">
+          {isLoading && (
+            <div className="flex items-center justify-center py-10 text-muted-foreground text-sm">Loading…</div>
+          )}
+          {!isLoading && filtered.length === 0 && (
+            <div className="flex items-center justify-center py-10 text-muted-foreground text-sm">
+              {search.trim() ? "No lots match your search." : "No unassigned lots available."}
+            </div>
+          )}
+          {!isLoading && filtered.length > 0 && (
+            <div className="flex flex-col py-1">
+              {filtered.map((lot) => {
+                const isAdding = injectingId === lot.id;
+                return (
+                  <button
+                    key={lot.id}
+                    type="button"
+                    disabled={!!injectingId}
+                    onClick={() => void handleInject(lot.id)}
+                    className="flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted">
+                      {lot.primaryImage ? (
+                        // biome-ignore lint/performance/noImgElement: external URL from API
+                        <img src={lot.primaryImage} alt={lot.title} className="size-full object-cover" />
+                      ) : (
+                        <div className="flex size-full items-center justify-center">
+                          <Package className="size-5 text-muted-foreground/50" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate font-medium text-sm">{lot.title}</span>
+                      <span className="mt-0.5 text-muted-foreground text-xs capitalize">
+                        {lot.condition.replace(/_/g, " ")} · {lot.category.name} · Vendor #{lot.vendorId}
+                      </span>
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 font-medium text-xs",
+                        isAdding ? "text-muted-foreground" : "text-primary",
+                      )}
+                    >
+                      {isAdding ? "Adding…" : "Add"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -387,10 +524,12 @@ export function AuctionLots({ auction }: { auction: IAuction }) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [removingLotId, setRemovingLotId] = useState<number | null>(null);
+  const [injectOpen, setInjectOpen] = useState(false);
 
   const status = auction.status.toLowerCase();
   const isDraft = status === "draft";
   const canCancel = !TERMINAL_STATUSES.has(status);
+  const canAddLot = isDraft || status === "active";
 
   async function handlePublish() {
     setIsPublishing(true);
@@ -432,142 +571,168 @@ export function AuctionLots({ auction }: { auction: IAuction }) {
     }
   }
 
-  return (
-    <Collapsible
-      defaultOpen
-      className="flex flex-col overflow-hidden rounded-xl border bg-card py-3 text-card-foreground data-[state=open]:gap-3 data-[state=open]:pb-0"
-    >
-      <div className="flex flex-col gap-2 px-4 sm:flex-row sm:items-center">
-        <CollapsibleTrigger asChild>
-          <Button
-            variant="ghost"
-            className="group -ml-2 h-auto w-full justify-start gap-2 px-2 py-1 hover:bg-transparent aria-expanded:bg-transparent sm:flex-1"
-          >
-            <ChevronDown className="group-data-[state=open]:rotate-180" />
-            <div className="flex min-w-0 items-baseline gap-1.5 text-left">
-              <span className="shrink-0 font-medium leading-none">{auction.title}</span>
-              {auction.locationName && (
-                <span className="min-w-0 truncate text-muted-foreground text-sm">({auction.locationName})</span>
-              )}
-              <AuctionStatusBadge status={auction.status} />
-            </div>
-          </Button>
-        </CollapsibleTrigger>
-        <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end">
-          {isDraft && (
-            <Button variant="ghost" size="sm" className="-ml-1.5 sm:ml-0">
-              <Plus data-icon="inline-start" />
-              Add Lot
-            </Button>
-          )}
-          <AlertDialog>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon-sm" disabled={isCancelling}>
-                  <EllipsisVertical />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-44" align="end">
-                <DropdownMenuGroup>
-                  {auction.lots.length > 0 ? (
-                    <DropdownMenuItem>
-                      <FileText />
-                      Bid History
-                    </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuItem onSelect={() => router.push(`/dashboard/auctions/${auction.id}`)}>
-                    <ExternalLink />
-                    View Auction
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings />
-                    Auction Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <RefreshCw />
-                    Sync Bids
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Bell />
-                    Manage Alerts
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem>
-                    <Copy />
-                    Copy Auction ID
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                {isDraft && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem
-                        disabled={isPublishing}
-                        onSelect={() => void handlePublish()}
-                        className="text-green-700"
-                      >
-                        <Globe />
-                        {isPublishing ? "Publishing…" : "Publish Auction"}
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </>
-                )}
-                {canCancel && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          disabled={isCancelling}
-                          onSelect={(e) => e.preventDefault()}
-                        >
-                          <X />
-                          Cancel Auction
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                    </DropdownMenuGroup>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Cancel this auction?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  <strong>{auction.title}</strong> will be cancelled and all pending bids will be voided. This cannot be
-                  undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Keep Auction</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-white hover:bg-destructive/90"
-                  onClick={() => void handleCancel()}
-                >
-                  Yes, Cancel Auction
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
+  function handleInjectSuccess() {
+    void queryClient.invalidateQueries({ queryKey: ["admin-auctions"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-lots-unassigned"] });
+  }
 
-      <CollapsibleContent>
-        {auction.lots.length > 0 ? (
-          <LotsTable
-            lots={auction.lots}
-            auction={auction}
-            isDraft={isDraft}
-            onRemoveLot={handleRemoveLot}
-            removingLotId={removingLotId}
-          />
-        ) : (
-          <EmptyAuctionState />
-        )}
-      </CollapsibleContent>
-    </Collapsible>
+  return (
+    <>
+      <Collapsible
+        defaultOpen
+        className="flex flex-col overflow-hidden rounded-xl border bg-card py-3 text-card-foreground data-[state=open]:gap-3 data-[state=open]:pb-0"
+      >
+        <div className="flex flex-col gap-2 px-4 sm:flex-row sm:items-center">
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="group -ml-2 h-auto w-full justify-start gap-2 px-2 py-1 hover:bg-transparent aria-expanded:bg-transparent sm:flex-1"
+            >
+              <ChevronDown className="group-data-[state=open]:rotate-180" />
+              <div className="flex min-w-0 items-baseline gap-1.5 text-left">
+                <span className="shrink-0 font-medium leading-none">{auction.title}</span>
+                {auction.locationName && (
+                  <span className="min-w-0 truncate text-muted-foreground text-sm">({auction.locationName})</span>
+                )}
+                <AuctionStatusBadge status={auction.status} />
+              </div>
+            </Button>
+          </CollapsibleTrigger>
+          <div className="flex w-full items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end">
+            {canAddLot && (
+              <Button variant="ghost" size="sm" className="-ml-1.5 sm:ml-0" onClick={() => setInjectOpen(true)}>
+                <Plus data-icon="inline-start" />
+                Add Lot
+              </Button>
+            )}
+            <AlertDialog>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon-sm" disabled={isCancelling}>
+                    <EllipsisVertical />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-44" align="end">
+                  <DropdownMenuGroup>
+                    {auction.lots.length > 0 ? (
+                      <DropdownMenuItem>
+                        <FileText />
+                        Bid History
+                      </DropdownMenuItem>
+                    ) : null}
+                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/auctions/${auction.id}`)}>
+                      <ExternalLink />
+                      View Auction
+                    </DropdownMenuItem>
+                    {canAddLot && (
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setInjectOpen(true);
+                        }}
+                      >
+                        <Plus />
+                        Add Lot
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem>
+                      <Settings />
+                      Auction Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <RefreshCw />
+                      Sync Bids
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Bell />
+                      Manage Alerts
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem>
+                      <Copy />
+                      Copy Auction ID
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  {isDraft && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          disabled={isPublishing}
+                          onSelect={() => void handlePublish()}
+                          className="text-green-700"
+                        >
+                          <Globe />
+                          {isPublishing ? "Publishing…" : "Publish Auction"}
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                  {canCancel && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            disabled={isCancelling}
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <X />
+                            Cancel Auction
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancel this auction?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    <strong>{auction.title}</strong> will be cancelled and all pending bids will be voided. This cannot
+                    be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep Auction</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-white hover:bg-destructive/90"
+                    onClick={() => void handleCancel()}
+                  >
+                    Yes, Cancel Auction
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+
+        <CollapsibleContent>
+          {auction.lots.length > 0 ? (
+            <LotsTable
+              lots={auction.lots}
+              auction={auction}
+              isDraft={isDraft}
+              onRemoveLot={handleRemoveLot}
+              removingLotId={removingLotId}
+            />
+          ) : (
+            <EmptyAuctionState />
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      <InjectLotDialog
+        auctionId={auction.id}
+        auctionStatus={status}
+        open={injectOpen}
+        onOpenChange={setInjectOpen}
+        onSuccess={handleInjectSuccess}
+      />
+    </>
   );
 }
