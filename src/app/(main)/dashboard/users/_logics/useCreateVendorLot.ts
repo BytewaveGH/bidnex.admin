@@ -16,7 +16,7 @@ export function useCreateVendorLot() {
   async function createLot(payload: CreateVendorLotPayload) {
     setIsLoading(true);
     try {
-      return await apiRequest<CreateVendorLotApiResponse>("/api/vendor/lots", token, {
+      return await apiRequest<CreateVendorLotApiResponse>("/api/admin/lots", token, {
         method: "POST",
         body: payload,
       });
