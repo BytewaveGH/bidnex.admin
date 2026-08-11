@@ -21,7 +21,7 @@ export default function Page() {
   return (
     <div className="flex flex-col gap-4">
       <div className="space-y-1">
-        <h1 className="text-3xl tracking-tight">Personal Finances</h1>
+        <h1 className="text-3xl tracking-tight">Finance Overview</h1>
         <p className="text-muted-foreground text-sm">{formattedDate}</p>
       </div>
 
@@ -29,7 +29,7 @@ export default function Page() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <TabsList variant="line">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="accounts">Accounts</TabsTrigger>
+            <TabsTrigger value="accounts">Payout Accounts</TabsTrigger>
             <TabsTrigger value="transactions">Transactions</TabsTrigger>
           </TabsList>
 
@@ -74,7 +74,7 @@ export default function Page() {
             <div className="xl:col-span-4">
               <Wallet />
             </div>
-            <div className="xl:col-span-4">
+            <div className="flex flex-col xl:col-span-4">
               <UpcomingTransactions />
             </div>
             <div className="xl:col-span-4">

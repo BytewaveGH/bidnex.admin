@@ -2,10 +2,13 @@
 
 import { Suspense } from "react";
 
+import Link from "next/link";
+
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Plus } from "lucide-react";
 import { useSession } from "next-auth/react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/api-client";
@@ -60,11 +63,19 @@ export default function Page() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-3xl tracking-tight">Vendor Lots</h2>
-        <p className="text-muted-foreground text-sm">
-          Review and approve lots submitted by vendors before assigning them to auctions
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-3xl tracking-tight">Vendor Lots</h2>
+          <p className="text-muted-foreground text-sm">
+            Review and approve lots submitted by vendors before assigning them to auctions
+          </p>
+        </div>
+        <Button size="sm" asChild>
+          <Link href="/dashboard/vendor-lots/new">
+            <Plus data-icon="inline-start" />
+            New Lot
+          </Link>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">

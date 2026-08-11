@@ -52,4 +52,7 @@ export const AuctionServices = {
   RemoveLot(auctionId: number, lotId: number) {
     return { endpoint: `/api/admin/auctions/${auctionId}/lots/${lotId}` };
   },
+  InjectLot(auctionId: number, lotId: number) {
+    return { endpoint: `/admin/auctions/${auctionId}/lots/${lotId}` };
+  },
 };

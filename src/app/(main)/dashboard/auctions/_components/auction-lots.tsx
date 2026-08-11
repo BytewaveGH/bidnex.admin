@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -152,168 +153,208 @@ function BidMeter({ label, value }: { label: string; value: number }) {
 export function LotsTable({
   lots,
   auction,
-  isDraft = false,
   onRemoveLot,
   removingLotId,
 }: {
   lots: IAuctionLot[];
   auction: IAuction;
   isDraft?: boolean;
-  onRemoveLot?: (lotId: number) => void;
+  onRemoveLot?: (lotId: number, wasActive: boolean) => void;
   removingLotId?: number | null;
 }) {
-  return (
-    <div className="scrollbar-thin overflow-x-auto [scrollbar-color:var(--border)_transparent] **:data-[slot=table-container]:overflow-visible [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1">
-      <Table className="min-w-[1700px] table-fixed **:data-[slot='table-cell']:px-5 **:data-[slot='table-head']:px-5">
-        <colgroup>
-          <col className="w-90" />
-          <col className="w-40" />
-          <col className="w-42" />
-          <col className="w-35" />
-          <col className="w-35" />
-          <col className="w-38" />
-          <col className="w-98" />
-          <col className="w-55" />
-          <col className="w-18" />
-        </colgroup>
-        <TableHeader className="bg-muted/50 [&_tr]:border-y">
-          <TableRow>
-            <TableHead className="font-medium">
-              <span className="inline-flex items-center gap-1">
-                Product <ArrowUpDown className="size-4" />
-              </span>
-            </TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Bids</TableHead>
-            <TableHead>Current Bid</TableHead>
-            <TableHead>Time Left</TableHead>
-            <TableHead>Metrics</TableHead>
-            <TableHead>Location / Condition</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody className="**:data-[slot='table-row']:hover:bg-transparent">
-          {lots.map((lot) => {
-            const Icon = getCategoryIcon(lot.category.name);
-            const bidStatus = lot.bidCount > 0 ? "Live" : "No Bids";
-            const timeLeft = getTimeLeft(lot.bidEndTime, lot.status);
-            const metrics = computeMetrics(lot);
-            const isRemoving = removingLotId === lot.id;
+  const [pendingRemove, setPendingRemove] = useState<{ lotId: number; lotStatus: string } | null>(null);
 
-            return (
-              <TableRow key={lot.id}>
-                <TableCell>
-                  <span className="block truncate font-medium" title={lot.title}>
-                    {lot.title}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="flex items-center gap-2 font-medium text-muted-foreground">
-                    <Icon className="size-4 shrink-0" />
-                    {lot.category.name}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className="rounded-sm px-1.5 py-0.5">
-                    {displayLotStatus(lot.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={bidStatus === "Live" ? "secondary" : "destructive"}
-                    className={cn(
-                      "rounded-sm px-1.5 py-0.5",
-                      bidStatus === "Live" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-                    )}
-                  >
-                    <span
+  const isLiveRemove = pendingRemove?.lotStatus === "active";
+
+  return (
+    <>
+      <div className="scrollbar-thin overflow-x-auto [scrollbar-color:var(--border)_transparent] **:data-[slot=table-container]:overflow-visible [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1">
+        <Table className="min-w-[1700px] table-fixed **:data-[slot='table-cell']:px-5 **:data-[slot='table-head']:px-5">
+          <colgroup>
+            <col className="w-90" />
+            <col className="w-40" />
+            <col className="w-42" />
+            <col className="w-35" />
+            <col className="w-35" />
+            <col className="w-38" />
+            <col className="w-98" />
+            <col className="w-55" />
+            <col className="w-18" />
+          </colgroup>
+          <TableHeader className="bg-muted/50 [&_tr]:border-y">
+            <TableRow>
+              <TableHead className="font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Product <ArrowUpDown className="size-4" />
+                </span>
+              </TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Bids</TableHead>
+              <TableHead>Current Bid</TableHead>
+              <TableHead>Time Left</TableHead>
+              <TableHead>Metrics</TableHead>
+              <TableHead>Location / Condition</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody className="**:data-[slot='table-row']:hover:bg-transparent">
+            {lots.map((lot) => {
+              const Icon = getCategoryIcon(lot.category.name);
+              const bidStatus = lot.bidCount > 0 ? "Live" : "No Bids";
+              const timeLeft = getTimeLeft(lot.bidEndTime, lot.status);
+              const metrics = computeMetrics(lot);
+              const isRemoving = removingLotId === lot.id;
+
+              return (
+                <TableRow key={lot.id}>
+                  <TableCell>
+                    <span className="block truncate font-medium" title={lot.title}>
+                      {lot.title}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="flex items-center gap-2 font-medium text-muted-foreground">
+                      <Icon className="size-4 shrink-0" />
+                      {lot.category.name}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="rounded-sm px-1.5 py-0.5">
+                      {displayLotStatus(lot.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={bidStatus === "Live" ? "secondary" : "destructive"}
                       className={cn(
-                        "size-1.5 rounded-full",
-                        bidStatus === "Live" ? "bg-emerald-500" : "bg-destructive",
+                        "rounded-sm px-1.5 py-0.5",
+                        bidStatus === "Live" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
                       )}
-                    />
-                    {bidStatus}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center gap-1.5 font-medium tabular-nums">
-                    <Gavel className="size-4 text-muted-foreground" />
-                    GHS {lot.currentBid.toLocaleString()}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center gap-1.5 text-muted-foreground tabular-nums">
-                    <Clock3 className="size-4" />
-                    {timeLeft}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div className="grid grid-cols-3 gap-4">
-                    <BidMeter label="Above Start" value={metrics.aboveStart} />
-                    <BidMeter label="Reserve" value={metrics.reserveMet} />
-                    <BidMeter label="Activity" value={metrics.bidActivity} />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className="flex flex-col font-medium">
-                    {auction.locationName}
-                    <span className="text-muted-foreground text-xs">{formatCondition(lot.condition)}</span>
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" className="-mr-2" disabled={isRemoving}>
-                        <SquareTerminal />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-44" align="end">
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem>
-                          <FileText />
-                          Bid History
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Gavel />
-                          View Lot
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <RefreshCw />
-                          Relist
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem>
-                          <Copy />
-                          Copy Lot ID
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      {isDraft && onRemoveLot && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              disabled={isRemoving}
-                              onSelect={() => onRemoveLot(lot.id)}
-                            >
-                              <Trash2 />
-                              {isRemoving ? "Removing…" : "Remove from Auction"}
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+                    >
+                      <span
+                        className={cn(
+                          "size-1.5 rounded-full",
+                          bidStatus === "Live" ? "bg-emerald-500" : "bg-destructive",
+                        )}
+                      />
+                      {bidStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1.5 font-medium tabular-nums">
+                      <Gavel className="size-4 text-muted-foreground" />
+                      GHS {lot.currentBid.toLocaleString()}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1.5 text-muted-foreground tabular-nums">
+                      <Clock3 className="size-4" />
+                      {timeLeft}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="grid grid-cols-3 gap-4">
+                      <BidMeter label="Above Start" value={metrics.aboveStart} />
+                      <BidMeter label="Reserve" value={metrics.reserveMet} />
+                      <BidMeter label="Activity" value={metrics.bidActivity} />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="flex flex-col font-medium">
+                      {auction.locationName}
+                      <span className="text-muted-foreground text-xs">{formatCondition(lot.condition)}</span>
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" className="-mr-2" disabled={isRemoving}>
+                          <SquareTerminal />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-44" align="end">
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem>
+                            <FileText />
+                            Bid History
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Gavel />
+                            View Lot
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <RefreshCw />
+                            Relist
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem>
+                            <Copy />
+                            Copy Lot ID
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        {onRemoveLot && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuGroup>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                disabled={isRemoving}
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  setPendingRemove({ lotId: lot.id, lotStatus: lot.status.toLowerCase() });
+                                }}
+                              >
+                                <Trash2 />
+                                {isRemoving ? "Removing…" : "Remove from Auction"}
+                              </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      <AlertDialog
+        open={!!pendingRemove}
+        onOpenChange={(open) => {
+          if (!open) setPendingRemove(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{isLiveRemove ? "Remove live lot?" : "Remove lot from auction?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isLiveRemove
+                ? "This lot is currently live. Removing it will cancel the lot and release all bidder holds. This cannot be undone. Continue?"
+                : "This lot will be removed from the auction and returned to the unassigned pool."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingRemove(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingRemove && onRemoveLot) {
+                  onRemoveLot(pendingRemove.lotId, isLiveRemove);
+                }
+                setPendingRemove(null);
+              }}
+            >
+              {isLiveRemove ? "Remove and Cancel Lot" : "Remove Lot"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -373,12 +414,19 @@ export function AuctionLots({ auction }: { auction: IAuction }) {
     }
   }
 
-  async function handleRemoveLot(lotId: number) {
+  async function handleRemoveLot(lotId: number, wasActive: boolean) {
     setRemovingLotId(lotId);
     try {
       const svc = AuctionServices.RemoveLot(auction.id, lotId);
       await apiRequest(svc.endpoint, token, { method: "DELETE" });
       void queryClient.invalidateQueries({ queryKey: ["admin-auctions"] });
+      if (wasActive) {
+        toast.success("Lot removed and cancelled. Bidder holds released.");
+      } else {
+        toast.success("Lot removed and returned to the unassigned pool.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove lot.");
     } finally {
       setRemovingLotId(null);
     }
@@ -513,7 +561,7 @@ export function AuctionLots({ auction }: { auction: IAuction }) {
             lots={auction.lots}
             auction={auction}
             isDraft={isDraft}
-            onRemoveLot={isDraft ? handleRemoveLot : undefined}
+            onRemoveLot={handleRemoveLot}
             removingLotId={removingLotId}
           />
         ) : (

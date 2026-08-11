@@ -1,3 +1,17 @@
+export interface CreateLotBody {
+  vendorId: number;
+  title: string;
+  condition: "new" | "used" | "refurbished";
+  description?: string;
+  categoryId?: number;
+  sku?: string;
+  pickupAvailable?: boolean;
+  shippingAvailable?: boolean;
+  reservePrice?: number;
+  buyNowPrice?: number;
+  specifications?: Record<string, string>;
+}
+
 export interface FetchLotsParams {
   search?: string;
   condition?: string;
@@ -41,5 +55,11 @@ export const VendorLotServices = {
   },
   FeatureLot(id: number, featured: boolean) {
     return { endpoint: `/api/admin/lots/${id}/feature`, body: { featured } };
+  },
+  CreateLot(body: CreateLotBody) {
+    return { endpoint: "/admin/lots", body };
+  },
+  CreateLotForAuction(auctionId: number, body: CreateLotBody) {
+    return { endpoint: `/admin/auctions/${auctionId}/lots`, body };
   },
 };

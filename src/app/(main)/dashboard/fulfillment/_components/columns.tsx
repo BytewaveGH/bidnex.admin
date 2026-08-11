@@ -57,8 +57,11 @@ export const columns: ColumnDef<FulfillmentOrderSummary>[] = [
     },
   },
   {
-    accessorKey: "createdAt",
-    header: "Created",
-    cell: ({ row }) => <span className="text-sm">{formatDate(row.getValue("createdAt"))}</span>,
+    accessorKey: "lotEndedAt",
+    header: "Lot Ended",
+    cell: ({ row }) => {
+      const v: string | null = row.getValue("lotEndedAt");
+      return <span className="text-sm">{v ? formatDate(v) : "—"}</span>;
+    },
   },
 ];

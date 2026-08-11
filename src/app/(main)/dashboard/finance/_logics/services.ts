@@ -30,6 +30,11 @@ export interface Payout {
   createdAt: string;
 }
 
+export interface FetchPayoutAccountsParams {
+  page: number;
+  limit: number;
+}
+
 export const FinanceServices = {
   FetchStats() {
     return { endpoint: "/api/admin/finance/stats" };
@@ -37,6 +42,12 @@ export const FinanceServices = {
   FetchPayouts(params: FetchPayoutsParams) {
     return {
       endpoint: "/api/admin/finance/payouts",
+      params: params as unknown as Record<string, string | number | undefined>,
+    };
+  },
+  FetchPayoutAccounts(params: FetchPayoutAccountsParams) {
+    return {
+      endpoint: "/admin/payout-accounts",
       params: params as unknown as Record<string, string | number | undefined>,
     };
   },

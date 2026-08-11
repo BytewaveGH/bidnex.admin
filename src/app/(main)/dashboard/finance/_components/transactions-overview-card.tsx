@@ -63,11 +63,11 @@ const formatTooltipCurrency = (value: number | string) => formatCurrency(Number(
 const chartConfig = {
   expense: {
     color: "var(--chart-4)",
-    label: "Expense",
+    label: "Payouts",
   },
   income: {
     color: "var(--chart-2)",
-    label: "Income",
+    label: "Bid Volume",
   },
 } satisfies ChartConfig;
 
@@ -75,7 +75,7 @@ export function TransactionsOverviewCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-normal">Spending Overview</CardTitle>
+        <CardTitle className="font-normal">Settlement Activity</CardTitle>
         <CardAction>
           <Select defaultValue="weekly">
             <SelectTrigger className="w-28" size="sm">
