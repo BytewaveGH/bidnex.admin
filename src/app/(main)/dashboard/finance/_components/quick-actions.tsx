@@ -36,7 +36,7 @@ export function QuickActions() {
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle className="font-normal">Payout Status</CardTitle>
+          <CardTitle className="font-normal">Payout Alerts</CardTitle>
         </CardHeader>
         <CardContent className="flex gap-3">
           {payoutShortcuts.map((s) => {

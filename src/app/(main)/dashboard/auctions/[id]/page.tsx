@@ -8,6 +8,7 @@ import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CalendarDays, Clock3, Gavel, MapPin, Plus, Timer, X } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -22,9 +23,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/api-client";
 
+import { VendorLotServices } from "../../vendor-lots/_logics/services";
 import type { IAuction } from "../_components/auction-data";
 import { LotsTable } from "../_components/auction-lots";
 import { AuctionServices } from "../_logics/services";
@@ -32,6 +37,18 @@ import { AuctionServices } from "../_logics/services";
 interface ApiAuctionResponse {
   data?: IAuction;
   status?: boolean;
+}
+
+interface UnassignedLot {
+  id: number;
+  title: string;
+  condition: string;
+  category: { name: string };
+  vendorId: number;
+}
+
+interface UnassignedLotsResponse {
+  data?: { data?: UnassignedLot[] };
 }
 
 function formatDateTime(iso: string): string {
@@ -43,6 +60,110 @@ function formatDateTime(iso: string): string {
 
 const TERMINAL_STATUSES = new Set(["ended", "cancelled"]);
 
+// ── Inject Lot Dialog ─────────────────────────────────────────────────────────
+
+function InjectLotDialog({
+  auctionId,
+  auctionStatus,
+  open,
+  onOpenChange,
+  onSuccess,
+}: {
+  auctionId: number;
+  auctionStatus: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}) {
+  const { data: session } = useSession();
+  const token = session?.accessToken;
+  const [search, setSearch] = useState("");
+  const [injectingId, setInjectingId] = useState<number | null>(null);
+
+  const { data: res, isLoading } = useQuery({
+    queryKey: ["admin-lots-unassigned"],
+    queryFn: () => {
+      const svc = VendorLotServices.FetchUnassigned({ page: 1, limit: 100 });
+      return apiRequest<UnassignedLotsResponse>(svc.endpoint, token, { params: svc.params });
+    },
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  const lots = res?.data?.data ?? [];
+  const filtered = search.trim() ? lots.filter((l) => l.title.toLowerCase().includes(search.toLowerCase())) : lots;
+
+  async function handleInject(lotId: number) {
+    setInjectingId(lotId);
+    try {
+      const svc = AuctionServices.InjectLot(auctionId, lotId);
+      await apiRequest(svc.endpoint, token, { method: "POST" });
+      const isActive = auctionStatus === "active";
+      toast.success(isActive ? "Lot added and now live." : "Lot assigned — will go live when the auction starts.");
+      onOpenChange(false);
+      setSearch("");
+      onSuccess();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to add lot.");
+    } finally {
+      setInjectingId(null);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) setSearch("");
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="max-w-lg gap-4">
+        <DialogHeader>
+          <DialogTitle>Add Lot to Auction</DialogTitle>
+          <DialogDescription>Select an approved lot from the unassigned pool.</DialogDescription>
+        </DialogHeader>
+        <Input placeholder="Search lots…" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus />
+        <ScrollArea className="max-h-80 rounded-md border">
+          {isLoading && (
+            <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">Loading…</div>
+          )}
+          {!isLoading && filtered.length === 0 && (
+            <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+              {search.trim() ? "No lots match your search." : "No unassigned lots available."}
+            </div>
+          )}
+          {!isLoading && filtered.length > 0 && (
+            <div className="flex flex-col py-1">
+              {filtered.map((lot) => (
+                <button
+                  key={lot.id}
+                  type="button"
+                  disabled={!!injectingId}
+                  onClick={() => void handleInject(lot.id)}
+                  className="flex items-center justify-between gap-4 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{lot.title}</span>
+                    <span className="text-muted-foreground text-xs capitalize">
+                      {lot.condition.replace(/_/g, " ")} · {lot.category.name} · Vendor #{lot.vendorId}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-muted-foreground text-xs">
+                    {injectingId === lot.id ? "Adding…" : "Add"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function AuctionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: session, status: sessionStatus } = useSession();
@@ -51,6 +172,7 @@ export default function AuctionDetailPage() {
 
   const [isCancelling, setIsCancelling] = useState(false);
   const [removingLotId, setRemovingLotId] = useState<number | null>(null);
+  const [injectOpen, setInjectOpen] = useState(false);
 
   const svc = AuctionServices.FetchOne(Number(id));
 
@@ -63,7 +185,9 @@ export default function AuctionDetailPage() {
   const auction = res?.data;
   const status = auction?.status.toLowerCase() ?? "";
   const isDraft = status === "draft";
+  const isActive = status === "active";
   const canCancel = !!auction && !TERMINAL_STATUSES.has(status);
+  const canAddLot = isDraft || isActive;
 
   async function handleCancel() {
     if (!auction) return;
@@ -78,7 +202,7 @@ export default function AuctionDetailPage() {
     }
   }
 
-  async function handleRemoveLot(lotId: number) {
+  async function handleRemoveLot(lotId: number, wasActive: boolean) {
     if (!auction) return;
     setRemovingLotId(lotId);
     try {
@@ -86,12 +210,25 @@ export default function AuctionDetailPage() {
       await apiRequest(s.endpoint, token, { method: "DELETE" });
       void queryClient.invalidateQueries({ queryKey: ["admin-auction", id] });
       void queryClient.invalidateQueries({ queryKey: ["admin-auctions"] });
+      if (wasActive) {
+        toast.success("Lot removed and cancelled. Bidder holds released.");
+      } else {
+        toast.success("Lot removed and returned to the unassigned pool.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove lot.");
     } finally {
       setRemovingLotId(null);
     }
   }
 
-  // ── Derived render blocks (avoids nested ternaries) ───────────────────────
+  function handleInjectSuccess() {
+    void queryClient.invalidateQueries({ queryKey: ["admin-auction", id] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-auctions"] });
+    void queryClient.invalidateQueries({ queryKey: ["admin-lots-unassigned"] });
+  }
+
+  // ── Derived render blocks ─────────────────────────────────────────────────
 
   let auctionHeader: ReactElement;
   if (isLoading) {
@@ -147,8 +284,8 @@ export default function AuctionDetailPage() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {isDraft && (
-            <Button size="sm">
+          {canAddLot && (
+            <Button size="sm" onClick={() => setInjectOpen(true)}>
               <Plus data-icon="inline-start" />
               Add Lot
             </Button>
@@ -211,7 +348,7 @@ export default function AuctionDetailPage() {
             lots={auction.lots}
             auction={auction}
             isDraft={isDraft}
-            onRemoveLot={isDraft ? handleRemoveLot : undefined}
+            onRemoveLot={handleRemoveLot}
             removingLotId={removingLotId}
           />
         </div>
@@ -237,6 +374,15 @@ export default function AuctionDetailPage() {
         {auctionHeader}
       </div>
       {lotsSection}
+      {auction && (
+        <InjectLotDialog
+          auctionId={auction.id}
+          auctionStatus={status}
+          open={injectOpen}
+          onOpenChange={setInjectOpen}
+          onSuccess={handleInjectSuccess}
+        />
+      )}
     </div>
   );
 }

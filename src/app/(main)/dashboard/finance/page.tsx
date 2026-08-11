@@ -74,7 +74,7 @@ export default function Page() {
             <div className="xl:col-span-4">
               <Wallet />
             </div>
-            <div className="xl:col-span-4">
+            <div className="flex flex-col xl:col-span-4">
               <UpcomingTransactions />
             </div>
             <div className="xl:col-span-4">

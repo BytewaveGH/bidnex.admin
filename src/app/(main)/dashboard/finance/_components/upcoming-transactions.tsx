@@ -43,11 +43,11 @@ export function UpcomingTransactions() {
   const total = lots.reduce((sum, p) => sum + p.transferAmount, 0);
 
   return (
-    <Card>
+    <Card className="flex h-full flex-col">
       <CardHeader>
         <CardTitle className="font-normal">Recent Sold Lots</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-1 flex-col gap-3">
         {isLoading && (
           <div className="flex flex-col gap-2">
             {Array.from({ length: 3 }).map((_, i) => (
