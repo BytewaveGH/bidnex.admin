@@ -258,7 +258,7 @@ export function LotReview({ lot, returnTo = "/dashboard/vendor-lots" }: Props) {
   const msrpThreshold = msrp > 0 ? (2 / 3) * msrp : Infinity;
   const isReserveTooHigh = msrp > 0 && lot.reservePrice > msrpThreshold;
 
-  const meta = reviewStatusMeta[lot.reviewStatus];
+  const meta = reviewStatusMeta[lot.reviewStatus] ?? { label: lot.reviewStatus, className: "" };
   const isSubmitted = lot.reviewStatus === "submitted";
   const isApproved = lot.reviewStatus === "approved";
   const canReview = isSubmitted || isApproved;
@@ -298,7 +298,7 @@ export function LotReview({ lot, returnTo = "/dashboard/vendor-lots" }: Props) {
           {/* Image gallery */}
           <Card>
             <CardContent className="pt-6">
-              <ImageGallery images={lot.images} primaryImage={lot.primaryImage} />
+              <ImageGallery images={lot.images ?? []} primaryImage={lot.primaryImage ?? ""} />
             </CardContent>
           </Card>
 
@@ -442,7 +442,7 @@ export function LotReview({ lot, returnTo = "/dashboard/vendor-lots" }: Props) {
               <Separator />
               <div className="flex flex-col gap-0.5">
                 <p className="text-muted-foreground text-xs">Category</p>
-                <p className="font-medium text-sm">{lot.category.name}</p>
+                <p className="font-medium text-sm">{lot.category?.name ?? "—"}</p>
               </div>
               <Separator />
               <div className="flex flex-col gap-0.5">
@@ -466,13 +466,13 @@ export function LotReview({ lot, returnTo = "/dashboard/vendor-lots" }: Props) {
               {/* Buy Now Price — read-only */}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Buy Now Price</span>
-                <span className="font-medium text-sm tabular-nums">GHS {lot.buyNowPrice.toFixed(2)}</span>
+                <span className="font-medium text-sm tabular-nums">GHS {(lot.buyNowPrice ?? 0).toFixed(2)}</span>
               </div>
               <Separator />
               {/* Reserve Price — read-only */}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Reserve Price</span>
-                <span className="font-medium text-sm tabular-nums">GHS {lot.reservePrice.toFixed(2)}</span>
+                <span className="font-medium text-sm tabular-nums">GHS {(lot.reservePrice ?? 0).toFixed(2)}</span>
               </div>
               <Separator />
               {/* MSRP — editable */}
