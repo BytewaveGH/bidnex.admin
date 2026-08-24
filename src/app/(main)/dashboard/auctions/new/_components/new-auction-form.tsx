@@ -408,7 +408,7 @@ function LotPreviewSheet({
           <div className="flex flex-col gap-2 text-sm">
             <div className="flex justify-between gap-2">
               <span className="text-muted-foreground">Category</span>
-              <span className="font-medium">{lot.category.name}</span>
+              <span className="font-medium">{lot.category?.name ?? "—"}</span>
             </div>
             <div className="flex justify-between gap-2">
               <span className="text-muted-foreground">Condition</span>
@@ -502,7 +502,7 @@ function LotsStep({
       !addedIds.has(l.id) &&
       (!search ||
         l.title.toLowerCase().includes(search.toLowerCase()) ||
-        l.category.name.toLowerCase().includes(search.toLowerCase())),
+        l.category?.name?.toLowerCase().includes(search.toLowerCase())),
   );
 
   let lotsListContent: React.ReactElement;
@@ -545,7 +545,7 @@ function LotsStep({
                 {lot.title}
               </p>
               <p className="text-muted-foreground text-xs">
-                {lot.category.name} · GHS {lot.startingBid.toFixed(2)}
+                {lot.category?.name ?? "—"} · GHS {lot.startingBid.toFixed(2)}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
