@@ -161,7 +161,7 @@ function makeColumns(onView: (id: number, e: React.MouseEvent) => void): ColumnD
     {
       accessorKey: "category",
       header: "Category",
-      cell: ({ row }) => <div className="text-sm">{row.original.category.name}</div>,
+      cell: ({ row }) => <div className="text-sm">{row.original.category?.name ?? "—"}</div>,
     },
     {
       accessorKey: "condition",
