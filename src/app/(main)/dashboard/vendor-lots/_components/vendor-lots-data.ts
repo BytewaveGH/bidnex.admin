@@ -56,7 +56,7 @@ export interface VendorLot {
   shippingAvailable: boolean;
   bidderIds?: number[];
   specifications?: Record<string, string>; // not returned by API — present in mock data only
-  category: LotCategory;
+  category: LotCategory | null;
   primaryImage: string;
   images: LotImage[];
   createdAt: string;
