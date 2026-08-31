@@ -100,7 +100,7 @@ function ImageUploadField({ id, label, value, onChange, token, onUploadStart, on
     onUploadStart?.();
     try {
       const fd = new FormData();
-      fd.append("images[]", file);
+      fd.append("images", file);
       const svc = PromotionServices.UploadImages();
       const res = await apiRequest<{ data: { urls: string[] } }>(svc.endpoint, token, {
         method: svc.method,
@@ -218,7 +218,7 @@ function BroadcastTab({ token }: { token: string | undefined }) {
     setItems((prev) => prev.map((item, idx) => (idx === index ? { ...item, isUploading: true } : item)));
     try {
       const fd = new FormData();
-      fd.append("images[]", file);
+      fd.append("images", file);
       const svc = PromotionServices.UploadImages();
       const res = await apiRequest<{ data: { urls: string[] } }>(svc.endpoint, token, {
         method: svc.method,
@@ -695,7 +695,7 @@ function SendToUserTab({ token }: { token: string | undefined }) {
     setItems((prev) => prev.map((item, idx) => (idx === index ? { ...item, isUploading: true } : item)));
     try {
       const fd = new FormData();
-      fd.append("images[]", file);
+      fd.append("images", file);
       const svc = PromotionServices.UploadImages();
       const res = await apiRequest<{ data: { urls: string[] } }>(svc.endpoint, token, {
         method: svc.method,
