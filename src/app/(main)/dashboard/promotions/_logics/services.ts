@@ -58,4 +58,7 @@ export const PromotionServices = {
   SendToUser() {
     return { endpoint: "/api/admin/promotions/test", method: "POST" as const };
   },
+  UploadImages() {
+    return { endpoint: "/api/admin/promotions/images", method: "POST" as const };
+  },
 };
