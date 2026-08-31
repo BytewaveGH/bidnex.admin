@@ -4,7 +4,7 @@
 import * as React from "react";
 
 import { useMutation } from "@tanstack/react-query";
-import { ImageIcon, Mail, Megaphone, Minus, Plus, Send, Users } from "lucide-react";
+import { Loader2, Mail, Megaphone, Minus, Plus, Send, Upload, Users } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -59,6 +59,7 @@ type TemplateType = "custom" | "promotional";
 interface GridItem {
   image: string;
   title: string;
+  isUploading?: boolean;
 }
 
 // ── Section heading ───────────────────────────────────────────────────────────
@@ -72,41 +73,104 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Image URL field ───────────────────────────────────────────────────────────
+// ── Image upload field ────────────────────────────────────────────────────────
 
-function ImageUrlField({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
+interface ImageUploadFieldProps {
   id: string;
   label: string;
   value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
+  onChange: (url: string) => void;
+  token: string | undefined;
+  onUploadStart?: () => void;
+  onUploadEnd?: () => void;
+}
+
+function ImageUploadField({ id, label, value, onChange, token, onUploadStart, onUploadEnd }: ImageUploadFieldProps) {
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  let uploadBtnLabel = "Upload image";
+  if (isUploading) uploadBtnLabel = "Uploading…";
+  else if (value) uploadBtnLabel = "Change image";
+
+  async function handleFile(file: File) {
+    setIsUploading(true);
+    setError(null);
+    onUploadStart?.();
+    try {
+      const fd = new FormData();
+      fd.append("images[]", file);
+      const svc = PromotionServices.UploadImages();
+      const res = await apiRequest<{ data: { urls: string[] } }>(svc.endpoint, token, {
+        method: svc.method,
+        body: fd,
+      });
+      onChange(res.data?.urls?.[0] ?? "");
+    } catch {
+      setError("Upload failed. Please try again.");
+    } finally {
+      setIsUploading(false);
+      onUploadEnd?.();
+    }
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <div className="flex items-center gap-2">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-          {value ? (
-            // biome-ignore lint/performance/noImgElement: user-provided CDN URL preview
-            <img src={value} alt="" className="size-full rounded-md object-cover" />
-          ) : (
-            <ImageIcon className="size-4" />
+      <input
+        ref={inputRef}
+        id={id}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleFile(file);
+          e.target.value = "";
+        }}
+      />
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={isUploading}
+          className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-border border-dashed bg-muted transition-colors hover:border-primary/50 hover:bg-muted/80 disabled:pointer-events-none"
+        >
+          {value && !isUploading && (
+            // biome-ignore lint/performance/noImgElement: CDN URL from upload response
+            <img src={value} alt="" className="size-full object-cover" />
           )}
-        </span>
-        <Input
-          id={id}
-          type="url"
-          placeholder={placeholder ?? "https://cdn.example.com/image.jpg"}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="flex-1"
-        />
+          {!value && !isUploading && <Upload className="size-5 text-muted-foreground" />}
+          {isUploading && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+        </button>
+        <div className="flex flex-col gap-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+            disabled={isUploading}
+          >
+            {uploadBtnLabel}
+          </Button>
+          {value && !isUploading && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                onChange("");
+                setError(null);
+              }}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              Remove
+            </Button>
+          )}
+          {error && <p className="text-destructive text-xs">{error}</p>}
+          {!error && !value && !isUploading && <p className="text-muted-foreground text-xs">PNG, JPG or WebP</p>}
+        </div>
       </div>
     </div>
   );
@@ -138,9 +202,35 @@ function BroadcastTab({ token }: { token: string | undefined }) {
   const [featuredTitle, setFeaturedTitle] = React.useState("");
   const [featuredBody, setFeaturedBody] = React.useState("");
 
+  // upload tracking for standalone image fields (hero, featured)
+  const [uploadingCount, setUploadingCount] = React.useState(0);
+  const startUpload = React.useCallback(() => setUploadingCount((c) => c + 1), []);
+  const endUpload = React.useCallback(() => setUploadingCount((c) => Math.max(0, c - 1)), []);
+
+  const itemInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+  const isAnyUploading = uploadingCount > 0 || items.some((item) => !!item.isUploading);
+
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [errors, setErrors] = React.useState<FieldError>({});
   const [apiError, setApiError] = React.useState<string | null>(null);
+
+  async function handleItemImageUpload(index: number, file: File) {
+    setItems((prev) => prev.map((item, idx) => (idx === index ? { ...item, isUploading: true } : item)));
+    try {
+      const fd = new FormData();
+      fd.append("images[]", file);
+      const svc = PromotionServices.UploadImages();
+      const res = await apiRequest<{ data: { urls: string[] } }>(svc.endpoint, token, {
+        method: svc.method,
+        body: fd,
+      });
+      const url = res.data?.urls?.[0] ?? "";
+      setItems((prev) => prev.map((item, idx) => (idx === index ? { ...item, image: url, isUploading: false } : item)));
+    } catch {
+      toast.error("Image upload failed.");
+      setItems((prev) => prev.map((item, idx) => (idx === index ? { ...item, isUploading: false } : item)));
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: async (payload: BroadcastPayload | PromotionalBroadcastPayload) => {
@@ -208,7 +298,7 @@ function BroadcastTab({ token }: { token: string | undefined }) {
         subject: subject.trim(),
         channel,
         target,
-        ...(heroImage.trim() ? { heroImage: heroImage.trim() } : {}),
+        ...(heroImage ? { heroImage } : {}),
         ...(heroCTA.trim() ? { heroCTA: heroCTA.trim() } : {}),
         ...(bodyTitle.trim() ? { bodyTitle: bodyTitle.trim() } : {}),
         ...(bodyText.trim() ? { bodyText: bodyText.trim() } : {}),
@@ -216,9 +306,9 @@ function BroadcastTab({ token }: { token: string | undefined }) {
         ...(bodyCtaUrl.trim() ? { bodyCtaUrl: bodyCtaUrl.trim() } : {}),
         ...(gridTitle.trim() ? { gridTitle: gridTitle.trim() } : {}),
         ...(filledItems.length > 0
-          ? { items: filledItems.map((i) => ({ image: i.image.trim(), title: i.title.trim() })) }
+          ? { items: filledItems.map((i) => ({ image: i.image, title: i.title.trim() })) }
           : {}),
-        ...(featuredImage.trim() ? { featuredImage: featuredImage.trim() } : {}),
+        ...(featuredImage ? { featuredImage } : {}),
         ...(featuredTitle.trim() ? { featuredTitle: featuredTitle.trim() } : {}),
         ...(featuredBody.trim() ? { featuredBody: featuredBody.trim() } : {}),
       };
@@ -234,8 +324,8 @@ function BroadcastTab({ token }: { token: string | undefined }) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function updateItem(i: number, field: keyof GridItem, val: string) {
-    setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
+  function updateItemTitle(i: number, val: string) {
+    setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, title: val } : item)));
   }
 
   const targetLabels: Record<PromotionTarget, string> = {
@@ -246,6 +336,10 @@ function BroadcastTab({ token }: { token: string | undefined }) {
 
   const channelLabels: Record<PromotionChannel, string> = { email: "email", sms: "SMS", both: "email and SMS" };
   const deliveryLabel = template === "promotional" ? "promotional email" : channelLabels[channel];
+
+  let broadcastBtnLabel = "Send Broadcast";
+  if (mutation.isPending) broadcastBtnLabel = "Sending…";
+  else if (isAnyUploading) broadcastBtnLabel = "Uploading images…";
 
   return (
     <>
@@ -353,12 +447,14 @@ function BroadcastTab({ token }: { token: string | undefined }) {
             {/* Hero */}
             <div className="flex flex-col gap-4">
               <SectionHeading>Hero</SectionHeading>
-              <ImageUrlField
+              <ImageUploadField
                 id="bc-heroImage"
-                label="Hero Image URL"
+                label="Hero Image"
                 value={heroImage}
                 onChange={setHeroImage}
-                placeholder="https://cdn.bidchale.com/promo/hero.jpg"
+                token={token}
+                onUploadStart={startUpload}
+                onUploadEnd={endUpload}
               />
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="bc-heroCTA">Hero CTA Text</Label>
@@ -432,24 +528,36 @@ function BroadcastTab({ token }: { token: string | undefined }) {
                 {items.map((item, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: positional grid items
                   <div key={i} className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground">
-                      {item.image ? (
-                        // biome-ignore lint/performance/noImgElement: user-provided CDN URL preview
-                        <img src={item.image} alt="" className="size-full object-cover" />
-                      ) : (
-                        <ImageIcon className="size-4" />
-                      )}
-                    </div>
-                    <Input
-                      placeholder="Image URL"
-                      value={item.image}
-                      onChange={(e) => updateItem(i, "image", e.target.value)}
-                      className="flex-1"
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      ref={(el) => {
+                        itemInputRefs.current[i] = el;
+                      }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void handleItemImageUpload(i, file);
+                        e.target.value = "";
+                      }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => itemInputRefs.current[i]?.click()}
+                      disabled={!!item.isUploading}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground transition-colors hover:border-primary/50 disabled:pointer-events-none"
+                    >
+                      {item.image && !item.isUploading && (
+                        // biome-ignore lint/performance/noImgElement: CDN URL from upload response
+                        <img src={item.image} alt="" className="size-full object-cover" />
+                      )}
+                      {!item.image && !item.isUploading && <Upload className="size-4" />}
+                      {item.isUploading && <Loader2 className="size-4 animate-spin" />}
+                    </button>
                     <Input
                       placeholder="Title"
                       value={item.title}
-                      onChange={(e) => updateItem(i, "title", e.target.value)}
+                      onChange={(e) => updateItemTitle(i, e.target.value)}
                       className="flex-1"
                     />
                     <Button
@@ -470,19 +578,23 @@ function BroadcastTab({ token }: { token: string | undefined }) {
                     Add item
                   </Button>
                 )}
-                <p className="text-muted-foreground text-xs">Up to 4 items. Each needs an image URL and a title.</p>
+                <p className="text-muted-foreground text-xs">
+                  Up to 4 items. Click the square to upload an image, then add a title.
+                </p>
               </div>
             </div>
 
             {/* Featured */}
             <div className="flex flex-col gap-4">
               <SectionHeading>Featured Block</SectionHeading>
-              <ImageUrlField
+              <ImageUploadField
                 id="bc-featuredImage"
-                label="Featured Image URL"
+                label="Featured Image"
                 value={featuredImage}
                 onChange={setFeaturedImage}
-                placeholder="https://cdn.bidchale.com/promo/labour-day.jpg"
+                token={token}
+                onUploadStart={startUpload}
+                onUploadEnd={endUpload}
               />
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="bc-featuredTitle">Featured Title</Label>
@@ -514,9 +626,9 @@ function BroadcastTab({ token }: { token: string | undefined }) {
           </div>
         )}
 
-        <Button className="self-end" disabled={mutation.isPending} onClick={handleSubmitClick}>
+        <Button className="self-end" disabled={mutation.isPending || isAnyUploading} onClick={handleSubmitClick}>
           <Megaphone className="size-4" />
-          {mutation.isPending ? "Sending…" : "Send Broadcast"}
+          {broadcastBtnLabel}
         </Button>
       </div>
 
@@ -565,11 +677,37 @@ function SendToUserTab({ token }: { token: string | undefined }) {
   const [featuredTitle, setFeaturedTitle] = React.useState("");
   const [featuredBody, setFeaturedBody] = React.useState("");
 
+  // upload tracking
+  const [uploadingCount, setUploadingCount] = React.useState(0);
+  const startUpload = React.useCallback(() => setUploadingCount((c) => c + 1), []);
+  const endUpload = React.useCallback(() => setUploadingCount((c) => Math.max(0, c - 1)), []);
+
+  const itemInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+  const isAnyUploading = uploadingCount > 0 || items.some((item) => !!item.isUploading);
+
   const [errors, setErrors] = React.useState<FieldError>({});
   const [apiError, setApiError] = React.useState<string | null>(null);
 
   const needsEmail = channel === "email" || channel === "both";
   const needsPhone = channel === "sms" || channel === "both";
+
+  async function handleItemImageUpload(index: number, file: File) {
+    setItems((prev) => prev.map((item, idx) => (idx === index ? { ...item, isUploading: true } : item)));
+    try {
+      const fd = new FormData();
+      fd.append("images[]", file);
+      const svc = PromotionServices.UploadImages();
+      const res = await apiRequest<{ data: { urls: string[] } }>(svc.endpoint, token, {
+        method: svc.method,
+        body: fd,
+      });
+      const url = res.data?.urls?.[0] ?? "";
+      setItems((prev) => prev.map((item, idx) => (idx === index ? { ...item, image: url, isUploading: false } : item)));
+    } catch {
+      toast.error("Image upload failed.");
+      setItems((prev) => prev.map((item, idx) => (idx === index ? { ...item, isUploading: false } : item)));
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: async (payload: SendToUserPayload | SendToUserPromotionalPayload) => {
@@ -650,7 +788,7 @@ function SendToUserTab({ token }: { token: string | undefined }) {
         channel,
         ...(needsEmail ? { email: email.trim() } : {}),
         ...(needsPhone ? { phone: phone.trim() } : {}),
-        ...(heroImage.trim() ? { heroImage: heroImage.trim() } : {}),
+        ...(heroImage ? { heroImage } : {}),
         ...(heroCTA.trim() ? { heroCTA: heroCTA.trim() } : {}),
         ...(bodyTitle.trim() ? { bodyTitle: bodyTitle.trim() } : {}),
         ...(bodyText.trim() ? { bodyText: bodyText.trim() } : {}),
@@ -658,9 +796,9 @@ function SendToUserTab({ token }: { token: string | undefined }) {
         ...(bodyCtaUrl.trim() ? { bodyCtaUrl: bodyCtaUrl.trim() } : {}),
         ...(gridTitle.trim() ? { gridTitle: gridTitle.trim() } : {}),
         ...(filledItems.length > 0
-          ? { items: filledItems.map((i) => ({ image: i.image.trim(), title: i.title.trim() })) }
+          ? { items: filledItems.map((i) => ({ image: i.image, title: i.title.trim() })) }
           : {}),
-        ...(featuredImage.trim() ? { featuredImage: featuredImage.trim() } : {}),
+        ...(featuredImage ? { featuredImage } : {}),
         ...(featuredTitle.trim() ? { featuredTitle: featuredTitle.trim() } : {}),
         ...(featuredBody.trim() ? { featuredBody: featuredBody.trim() } : {}),
       };
@@ -676,9 +814,13 @@ function SendToUserTab({ token }: { token: string | undefined }) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function updateItem(i: number, field: keyof GridItem, val: string) {
-    setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
+  function updateItemTitle(i: number, val: string) {
+    setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, title: val } : item)));
   }
+
+  let sendBtnLabel = "Send";
+  if (mutation.isPending) sendBtnLabel = "Sending…";
+  else if (isAnyUploading) sendBtnLabel = "Uploading images…";
 
   return (
     <div className="flex flex-col gap-5">
@@ -818,12 +960,14 @@ function SendToUserTab({ token }: { token: string | undefined }) {
           {/* Hero */}
           <div className="flex flex-col gap-4">
             <SectionHeading>Hero</SectionHeading>
-            <ImageUrlField
+            <ImageUploadField
               id="su-heroImage"
-              label="Hero Image URL"
+              label="Hero Image"
               value={heroImage}
               onChange={setHeroImage}
-              placeholder="https://cdn.bidchale.com/promo/hero.jpg"
+              token={token}
+              onUploadStart={startUpload}
+              onUploadEnd={endUpload}
             />
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="su-heroCTA">Hero CTA Text</Label>
@@ -897,24 +1041,36 @@ function SendToUserTab({ token }: { token: string | undefined }) {
               {items.map((item, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: positional grid items
                 <div key={i} className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground">
-                    {item.image ? (
-                      // biome-ignore lint/performance/noImgElement: user-provided CDN URL preview
-                      <img src={item.image} alt="" className="size-full object-cover" />
-                    ) : (
-                      <ImageIcon className="size-4" />
-                    )}
-                  </div>
-                  <Input
-                    placeholder="Image URL"
-                    value={item.image}
-                    onChange={(e) => updateItem(i, "image", e.target.value)}
-                    className="flex-1"
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    ref={(el) => {
+                      itemInputRefs.current[i] = el;
+                    }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleItemImageUpload(i, file);
+                      e.target.value = "";
+                    }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => itemInputRefs.current[i]?.click()}
+                    disabled={!!item.isUploading}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground transition-colors hover:border-primary/50 disabled:pointer-events-none"
+                  >
+                    {item.image && !item.isUploading && (
+                      // biome-ignore lint/performance/noImgElement: CDN URL from upload response
+                      <img src={item.image} alt="" className="size-full object-cover" />
+                    )}
+                    {!item.image && !item.isUploading && <Upload className="size-4" />}
+                    {item.isUploading && <Loader2 className="size-4 animate-spin" />}
+                  </button>
                   <Input
                     placeholder="Title"
                     value={item.title}
-                    onChange={(e) => updateItem(i, "title", e.target.value)}
+                    onChange={(e) => updateItemTitle(i, e.target.value)}
                     className="flex-1"
                   />
                   <Button
@@ -935,19 +1091,23 @@ function SendToUserTab({ token }: { token: string | undefined }) {
                   Add item
                 </Button>
               )}
-              <p className="text-muted-foreground text-xs">Up to 4 items. Each needs an image URL and a title.</p>
+              <p className="text-muted-foreground text-xs">
+                Up to 4 items. Click the square to upload an image, then add a title.
+              </p>
             </div>
           </div>
 
           {/* Featured */}
           <div className="flex flex-col gap-4">
             <SectionHeading>Featured Block</SectionHeading>
-            <ImageUrlField
+            <ImageUploadField
               id="su-featuredImage"
-              label="Featured Image URL"
+              label="Featured Image"
               value={featuredImage}
               onChange={setFeaturedImage}
-              placeholder="https://cdn.bidchale.com/promo/labour-day.jpg"
+              token={token}
+              onUploadStart={startUpload}
+              onUploadEnd={endUpload}
             />
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="su-featuredTitle">Featured Title</Label>
@@ -979,9 +1139,9 @@ function SendToUserTab({ token }: { token: string | undefined }) {
         </div>
       )}
 
-      <Button className="self-end" disabled={mutation.isPending} onClick={handleSubmit}>
+      <Button className="self-end" disabled={mutation.isPending || isAnyUploading} onClick={handleSubmit}>
         <Send className="size-4" />
-        {mutation.isPending ? "Sending…" : "Send"}
+        {sendBtnLabel}
       </Button>
     </div>
   );
