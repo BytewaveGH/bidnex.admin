@@ -4,7 +4,7 @@
 import * as React from "react";
 
 import { useMutation } from "@tanstack/react-query";
-import { Mail, Megaphone, Send, Users } from "lucide-react";
+import { ImageIcon, Mail, Megaphone, Minus, Plus, Send, Users } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
@@ -23,12 +23,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/api-client";
 
 import {
   type BroadcastPayload,
+  type PromotionalBroadcastPayload,
   type PromotionChannel,
   PromotionServices,
   type PromotionTarget,
@@ -51,19 +53,96 @@ interface FieldError {
   phone?: string;
 }
 
+type TemplateType = "custom" | "promotional";
+
+interface GridItem {
+  image: string;
+  title: string;
+}
+
+// ── Section heading ───────────────────────────────────────────────────────────
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="shrink-0 font-medium text-muted-foreground text-xs uppercase tracking-wider">{children}</span>
+      <Separator className="flex-1" />
+    </div>
+  );
+}
+
+// ── Image URL field ───────────────────────────────────────────────────────────
+
+function ImageUrlField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center gap-2">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
+          {value ? (
+            // biome-ignore lint/performance/noImgElement: user-provided CDN URL preview
+            <img src={value} alt="" className="size-full rounded-md object-cover" />
+          ) : (
+            <ImageIcon className="size-4" />
+          )}
+        </span>
+        <Input
+          id={id}
+          type="url"
+          placeholder={placeholder ?? "https://cdn.example.com/image.jpg"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Broadcast tab ─────────────────────────────────────────────────────────────
 
 function BroadcastTab({ token }: { token: string | undefined }) {
+  const [template, setTemplate] = React.useState<TemplateType>("custom");
+
+  // shared fields
   const [subject, setSubject] = React.useState("");
-  const [message, setMessage] = React.useState("");
   const [channel, setChannel] = React.useState<PromotionChannel>("email");
   const [target, setTarget] = React.useState<PromotionTarget>("all");
+
+  // custom-only
+  const [message, setMessage] = React.useState("");
+
+  // promotional fields
+  const [heroImage, setHeroImage] = React.useState("");
+  const [heroCTA, setHeroCTA] = React.useState("");
+  const [bodyTitle, setBodyTitle] = React.useState("");
+  const [bodyText, setBodyText] = React.useState("");
+  const [bodyCta, setBodyCta] = React.useState("");
+  const [bodyCtaUrl, setBodyCtaUrl] = React.useState("");
+  const [gridTitle, setGridTitle] = React.useState("");
+  const [items, setItems] = React.useState<GridItem[]>([{ image: "", title: "" }]);
+  const [featuredImage, setFeaturedImage] = React.useState("");
+  const [featuredTitle, setFeaturedTitle] = React.useState("");
+  const [featuredBody, setFeaturedBody] = React.useState("");
+
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [errors, setErrors] = React.useState<FieldError>({});
   const [apiError, setApiError] = React.useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: async (payload: BroadcastPayload) => {
+    mutationFn: async (payload: BroadcastPayload | PromotionalBroadcastPayload) => {
       const svc = PromotionServices.Broadcast();
       return apiRequest<{ message?: string; error?: string }>(svc.endpoint, token, {
         method: svc.method,
@@ -76,6 +155,17 @@ function BroadcastTab({ token }: { token: string | undefined }) {
       setMessage("");
       setChannel("email");
       setTarget("all");
+      setHeroImage("");
+      setHeroCTA("");
+      setBodyTitle("");
+      setBodyText("");
+      setBodyCta("");
+      setBodyCtaUrl("");
+      setGridTitle("");
+      setItems([{ image: "", title: "" }]);
+      setFeaturedImage("");
+      setFeaturedTitle("");
+      setFeaturedBody("");
       setApiError(null);
     },
     onError: (err) => {
@@ -96,7 +186,7 @@ function BroadcastTab({ token }: { token: string | undefined }) {
   function validate(): boolean {
     const next: FieldError = {};
     if (!subject.trim()) next.subject = "Subject is required.";
-    if (!message.trim()) next.message = "Message is required.";
+    if (template === "custom" && !message.trim()) next.message = "Message is required.";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -109,7 +199,42 @@ function BroadcastTab({ token }: { token: string | undefined }) {
 
   function handleConfirm() {
     setConfirmOpen(false);
-    mutation.mutate({ subject: subject.trim(), message: message.trim(), channel, target });
+    if (template === "custom") {
+      mutation.mutate({ subject: subject.trim(), message: message.trim(), channel, target });
+    } else {
+      const filledItems = items.filter((i) => i.title.trim() || i.image.trim());
+      const payload: PromotionalBroadcastPayload = {
+        subject: subject.trim(),
+        channel,
+        target,
+        ...(heroImage.trim() ? { heroImage: heroImage.trim() } : {}),
+        ...(heroCTA.trim() ? { heroCTA: heroCTA.trim() } : {}),
+        ...(bodyTitle.trim() ? { bodyTitle: bodyTitle.trim() } : {}),
+        ...(bodyText.trim() ? { bodyText: bodyText.trim() } : {}),
+        ...(bodyCta.trim() ? { bodyCta: bodyCta.trim() } : {}),
+        ...(bodyCtaUrl.trim() ? { bodyCtaUrl: bodyCtaUrl.trim() } : {}),
+        ...(gridTitle.trim() ? { gridTitle: gridTitle.trim() } : {}),
+        ...(filledItems.length > 0
+          ? { items: filledItems.map((i) => ({ image: i.image.trim(), title: i.title.trim() })) }
+          : {}),
+        ...(featuredImage.trim() ? { featuredImage: featuredImage.trim() } : {}),
+        ...(featuredTitle.trim() ? { featuredTitle: featuredTitle.trim() } : {}),
+        ...(featuredBody.trim() ? { featuredBody: featuredBody.trim() } : {}),
+      };
+      mutation.mutate(payload);
+    }
+  }
+
+  function addItem() {
+    if (items.length < 4) setItems((prev) => [...prev, { image: "", title: "" }]);
+  }
+
+  function removeItem(i: number) {
+    setItems((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function updateItem(i: number, field: keyof GridItem, val: string) {
+    setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
   }
 
   const targetLabels: Record<PromotionTarget, string> = {
@@ -118,15 +243,46 @@ function BroadcastTab({ token }: { token: string | undefined }) {
     vendors: "Vendors Only",
   };
 
+  const channelLabels: Record<PromotionChannel, string> = { email: "email", sms: "SMS", both: "email and SMS" };
+  const deliveryLabel = template === "promotional" ? "promotional email" : channelLabels[channel];
+
   return (
     <>
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-6">
+        {/* Template picker */}
+        <div className="flex flex-col gap-1.5">
+          <Label>Template</Label>
+          <div className="grid grid-cols-2 gap-3 sm:max-w-xs">
+            {(["custom", "promotional"] as TemplateType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTemplate(t)}
+                className={`rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
+                  template === t
+                    ? "border-primary bg-primary/5 font-medium"
+                    : "border-border hover:border-muted-foreground/50"
+                }`}
+              >
+                <span className="font-medium capitalize">{t}</span>
+                <p className="mt-0.5 font-normal text-muted-foreground text-xs">
+                  {t === "custom" ? "Plain subject + message" : "Rich email with images"}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
         {/* Subject */}
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="bc-subject">Subject</Label>
+          <Label htmlFor="bc-subject">
+            Subject <span className="text-destructive">*</span>
+          </Label>
           <Input
             id="bc-subject"
-            placeholder="e.g. Exclusive deal this weekend"
+            placeholder="e.g. Your next win awaits! 🔥"
             value={subject}
             onChange={(e) => {
               setSubject(e.target.value);
@@ -135,23 +291,6 @@ function BroadcastTab({ token }: { token: string | undefined }) {
             aria-invalid={!!errors.subject}
           />
           {errors.subject && <p className="text-destructive text-xs">{errors.subject}</p>}
-        </div>
-
-        {/* Message */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="bc-message">Message</Label>
-          <Textarea
-            id="bc-message"
-            placeholder="Write your promotional message here…"
-            value={message}
-            onChange={(e) => {
-              setMessage(e.target.value);
-              if (errors.message) setErrors((p) => ({ ...p, message: undefined }));
-            }}
-            className="min-h-36 resize-none"
-            aria-invalid={!!errors.message}
-          />
-          {errors.message && <p className="text-destructive text-xs">{errors.message}</p>}
         </div>
 
         {/* Channel + Audience row */}
@@ -186,6 +325,187 @@ function BroadcastTab({ token }: { token: string | undefined }) {
           </div>
         </div>
 
+        {/* Custom template fields */}
+        {template === "custom" && (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="bc-message">
+              Message <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="bc-message"
+              placeholder="Write your promotional message here…"
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                if (errors.message) setErrors((p) => ({ ...p, message: undefined }));
+              }}
+              className="min-h-36 resize-none"
+              aria-invalid={!!errors.message}
+            />
+            {errors.message && <p className="text-destructive text-xs">{errors.message}</p>}
+          </div>
+        )}
+
+        {/* Promotional template fields */}
+        {template === "promotional" && (
+          <div className="flex flex-col gap-6">
+            {/* Hero */}
+            <div className="flex flex-col gap-4">
+              <SectionHeading>Hero</SectionHeading>
+              <ImageUrlField
+                id="bc-heroImage"
+                label="Hero Image URL"
+                value={heroImage}
+                onChange={setHeroImage}
+                placeholder="https://cdn.bidchale.com/promo/hero.jpg"
+              />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bc-heroCTA">Hero CTA Text</Label>
+                <Input
+                  id="bc-heroCTA"
+                  placeholder="e.g. See For Yourself"
+                  value={heroCTA}
+                  onChange={(e) => setHeroCTA(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex flex-col gap-4">
+              <SectionHeading>Body</SectionHeading>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bc-bodyTitle">Title</Label>
+                <Input
+                  id="bc-bodyTitle"
+                  placeholder="e.g. Your Next Win Awaits"
+                  value={bodyTitle}
+                  onChange={(e) => setBodyTitle(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bc-bodyText">Body Text</Label>
+                <Textarea
+                  id="bc-bodyText"
+                  placeholder="e.g. These hand-picked auctions are waiting for your bid!"
+                  value={bodyText}
+                  onChange={(e) => setBodyText(e.target.value)}
+                  className="min-h-20 resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="bc-bodyCta">CTA Button Label</Label>
+                  <Input
+                    id="bc-bodyCta"
+                    placeholder="e.g. Start Winning"
+                    value={bodyCta}
+                    onChange={(e) => setBodyCta(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="bc-bodyCtaUrl">CTA URL</Label>
+                  <Input
+                    id="bc-bodyCtaUrl"
+                    type="url"
+                    placeholder="https://www.bidchale.com/auctions"
+                    value={bodyCtaUrl}
+                    onChange={(e) => setBodyCtaUrl(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Grid */}
+            <div className="flex flex-col gap-4">
+              <SectionHeading>Grid Items</SectionHeading>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bc-gridTitle">Grid Title</Label>
+                <Input
+                  id="bc-gridTitle"
+                  placeholder="e.g. Top Weekend Wins"
+                  value={gridTitle}
+                  onChange={(e) => setGridTitle(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                {items.map((item, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: positional grid items
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground">
+                      {item.image ? (
+                        // biome-ignore lint/performance/noImgElement: user-provided CDN URL preview
+                        <img src={item.image} alt="" className="size-full object-cover" />
+                      ) : (
+                        <ImageIcon className="size-4" />
+                      )}
+                    </div>
+                    <Input
+                      placeholder="Image URL"
+                      value={item.image}
+                      onChange={(e) => updateItem(i, "image", e.target.value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="Title"
+                      value={item.title}
+                      onChange={(e) => updateItem(i, "title", e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => removeItem(i)}
+                      disabled={items.length === 1}
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Minus className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+                {items.length < 4 && (
+                  <Button type="button" variant="outline" size="sm" onClick={addItem} className="w-fit">
+                    <Plus className="size-4" />
+                    Add item
+                  </Button>
+                )}
+                <p className="text-muted-foreground text-xs">Up to 4 items. Each needs an image URL and a title.</p>
+              </div>
+            </div>
+
+            {/* Featured */}
+            <div className="flex flex-col gap-4">
+              <SectionHeading>Featured Block</SectionHeading>
+              <ImageUrlField
+                id="bc-featuredImage"
+                label="Featured Image URL"
+                value={featuredImage}
+                onChange={setFeaturedImage}
+                placeholder="https://cdn.bidchale.com/promo/labour-day.jpg"
+              />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bc-featuredTitle">Featured Title</Label>
+                <Input
+                  id="bc-featuredTitle"
+                  placeholder="e.g. Holiday Hours"
+                  value={featuredTitle}
+                  onChange={(e) => setFeaturedTitle(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bc-featuredBody">Featured Body</Label>
+                <Textarea
+                  id="bc-featuredBody"
+                  placeholder="e.g. Labour Day is next week! BidChale auctions will continue running."
+                  value={featuredBody}
+                  onChange={(e) => setFeaturedBody(e.target.value)}
+                  className="min-h-20 resize-none"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Inline API error */}
         {apiError && (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5">
@@ -204,8 +524,7 @@ function BroadcastTab({ token }: { token: string | undefined }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Send broadcast to {targetLabels[target].toLowerCase()}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will send to all matching active accounts via {channel === "both" ? "email and SMS" : channel}. Are
-              you sure you want to continue?
+              This will send a {deliveryLabel} to all matching active accounts. Are you sure you want to continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

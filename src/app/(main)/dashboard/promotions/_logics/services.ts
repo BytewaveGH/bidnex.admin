@@ -8,6 +8,23 @@ export interface BroadcastPayload {
   target?: PromotionTarget;
 }
 
+export interface PromotionalBroadcastPayload {
+  subject: string;
+  channel?: PromotionChannel;
+  target?: PromotionTarget;
+  heroImage?: string;
+  heroCTA?: string;
+  bodyTitle?: string;
+  bodyText?: string;
+  bodyCta?: string;
+  bodyCtaUrl?: string;
+  gridTitle?: string;
+  items?: { image: string; title: string }[];
+  featuredImage?: string;
+  featuredTitle?: string;
+  featuredBody?: string;
+}
+
 export interface SendToUserPayload {
   subject: string;
   message: string;
