@@ -35,6 +35,7 @@ import {
   PromotionServices,
   type PromotionTarget,
   type SendToUserPayload,
+  type SendToUserPromotionalPayload,
 } from "../_logics/services";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -540,11 +541,30 @@ function BroadcastTab({ token }: { token: string | undefined }) {
 // ── Send to User tab ──────────────────────────────────────────────────────────
 
 function SendToUserTab({ token }: { token: string | undefined }) {
+  const [template, setTemplate] = React.useState<TemplateType>("custom");
+
+  // shared
   const [subject, setSubject] = React.useState("");
-  const [message, setMessage] = React.useState("");
   const [channel, setChannel] = React.useState<PromotionChannel>("email");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
+
+  // custom-only
+  const [message, setMessage] = React.useState("");
+
+  // promotional fields
+  const [heroImage, setHeroImage] = React.useState("");
+  const [heroCTA, setHeroCTA] = React.useState("");
+  const [bodyTitle, setBodyTitle] = React.useState("");
+  const [bodyText, setBodyText] = React.useState("");
+  const [bodyCta, setBodyCta] = React.useState("");
+  const [bodyCtaUrl, setBodyCtaUrl] = React.useState("");
+  const [gridTitle, setGridTitle] = React.useState("");
+  const [items, setItems] = React.useState<GridItem[]>([{ image: "", title: "" }]);
+  const [featuredImage, setFeaturedImage] = React.useState("");
+  const [featuredTitle, setFeaturedTitle] = React.useState("");
+  const [featuredBody, setFeaturedBody] = React.useState("");
+
   const [errors, setErrors] = React.useState<FieldError>({});
   const [apiError, setApiError] = React.useState<string | null>(null);
 
@@ -552,7 +572,7 @@ function SendToUserTab({ token }: { token: string | undefined }) {
   const needsPhone = channel === "sms" || channel === "both";
 
   const mutation = useMutation({
-    mutationFn: async (payload: SendToUserPayload) => {
+    mutationFn: async (payload: SendToUserPayload | SendToUserPromotionalPayload) => {
       const svc = PromotionServices.SendToUser();
       return apiRequest<{ message?: string; error?: string }>(svc.endpoint, token, {
         method: svc.method,
@@ -566,6 +586,17 @@ function SendToUserTab({ token }: { token: string | undefined }) {
       setChannel("email");
       setEmail("");
       setPhone("");
+      setHeroImage("");
+      setHeroCTA("");
+      setBodyTitle("");
+      setBodyText("");
+      setBodyCta("");
+      setBodyCtaUrl("");
+      setGridTitle("");
+      setItems([{ image: "", title: "" }]);
+      setFeaturedImage("");
+      setFeaturedTitle("");
+      setFeaturedBody("");
       setApiError(null);
     },
     onError: (err) => {
@@ -586,7 +617,7 @@ function SendToUserTab({ token }: { token: string | undefined }) {
   function validate(): boolean {
     const next: FieldError = {};
     if (!subject.trim()) next.subject = "Subject is required.";
-    if (!message.trim()) next.message = "Message is required.";
+    if (template === "custom" && !message.trim()) next.message = "Message is required.";
     if (needsEmail && !email.trim()) next.email = "Email is required for this channel.";
     if (needsPhone) {
       if (!phone.trim()) {
@@ -603,21 +634,85 @@ function SendToUserTab({ token }: { token: string | undefined }) {
   function handleSubmit() {
     setApiError(null);
     if (!validate()) return;
-    const payload: SendToUserPayload = {
-      subject: subject.trim(),
-      message: message.trim(),
-      channel,
-      ...(needsEmail ? { email: email.trim() } : {}),
-      ...(needsPhone ? { phone: phone.trim() } : {}),
-    };
-    mutation.mutate(payload);
+    if (template === "custom") {
+      const payload: SendToUserPayload = {
+        subject: subject.trim(),
+        message: message.trim(),
+        channel,
+        ...(needsEmail ? { email: email.trim() } : {}),
+        ...(needsPhone ? { phone: phone.trim() } : {}),
+      };
+      mutation.mutate(payload);
+    } else {
+      const filledItems = items.filter((i) => i.title.trim() || i.image.trim());
+      const payload: SendToUserPromotionalPayload = {
+        subject: subject.trim(),
+        channel,
+        ...(needsEmail ? { email: email.trim() } : {}),
+        ...(needsPhone ? { phone: phone.trim() } : {}),
+        ...(heroImage.trim() ? { heroImage: heroImage.trim() } : {}),
+        ...(heroCTA.trim() ? { heroCTA: heroCTA.trim() } : {}),
+        ...(bodyTitle.trim() ? { bodyTitle: bodyTitle.trim() } : {}),
+        ...(bodyText.trim() ? { bodyText: bodyText.trim() } : {}),
+        ...(bodyCta.trim() ? { bodyCta: bodyCta.trim() } : {}),
+        ...(bodyCtaUrl.trim() ? { bodyCtaUrl: bodyCtaUrl.trim() } : {}),
+        ...(gridTitle.trim() ? { gridTitle: gridTitle.trim() } : {}),
+        ...(filledItems.length > 0
+          ? { items: filledItems.map((i) => ({ image: i.image.trim(), title: i.title.trim() })) }
+          : {}),
+        ...(featuredImage.trim() ? { featuredImage: featuredImage.trim() } : {}),
+        ...(featuredTitle.trim() ? { featuredTitle: featuredTitle.trim() } : {}),
+        ...(featuredBody.trim() ? { featuredBody: featuredBody.trim() } : {}),
+      };
+      mutation.mutate(payload);
+    }
+  }
+
+  function addItem() {
+    if (items.length < 4) setItems((prev) => [...prev, { image: "", title: "" }]);
+  }
+
+  function removeItem(i: number) {
+    setItems((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function updateItem(i: number, field: keyof GridItem, val: string) {
+    setItems((prev) => prev.map((item, idx) => (idx === i ? { ...item, [field]: val } : item)));
   }
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Template picker */}
+      <div className="flex flex-col gap-1.5">
+        <Label>Template</Label>
+        <div className="grid grid-cols-2 gap-3 sm:max-w-xs">
+          {(["custom", "promotional"] as TemplateType[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTemplate(t)}
+              className={`rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
+                template === t
+                  ? "border-primary bg-primary/5 font-medium"
+                  : "border-border hover:border-muted-foreground/50"
+              }`}
+            >
+              <span className="font-medium capitalize">{t}</span>
+              <p className="mt-0.5 font-normal text-muted-foreground text-xs">
+                {t === "custom" ? "Plain subject + message" : "Rich email with images"}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
       {/* Subject */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="su-subject">Subject</Label>
+        <Label htmlFor="su-subject">
+          Subject <span className="text-destructive">*</span>
+        </Label>
         <Input
           id="su-subject"
           placeholder="e.g. Your exclusive offer"
@@ -629,23 +724,6 @@ function SendToUserTab({ token }: { token: string | undefined }) {
           aria-invalid={!!errors.subject}
         />
         {errors.subject && <p className="text-destructive text-xs">{errors.subject}</p>}
-      </div>
-
-      {/* Message */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="su-message">Message</Label>
-        <Textarea
-          id="su-message"
-          placeholder="Write your message here…"
-          value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            if (errors.message) setErrors((p) => ({ ...p, message: undefined }));
-          }}
-          className="min-h-36 resize-none"
-          aria-invalid={!!errors.message}
-        />
-        {errors.message && <p className="text-destructive text-xs">{errors.message}</p>}
       </div>
 
       {/* Channel */}
@@ -669,12 +747,14 @@ function SendToUserTab({ token }: { token: string | undefined }) {
         </Select>
       </div>
 
-      {/* Conditional fields */}
+      {/* Recipient fields */}
       {(needsEmail || needsPhone) && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {needsEmail && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="su-email">Email address</Label>
+              <Label htmlFor="su-email">
+                Email address <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="su-email"
                 type="email"
@@ -691,7 +771,9 @@ function SendToUserTab({ token }: { token: string | undefined }) {
           )}
           {needsPhone && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="su-phone">Phone number</Label>
+              <Label htmlFor="su-phone">
+                Phone number <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="su-phone"
                 type="tel"
@@ -706,6 +788,187 @@ function SendToUserTab({ token }: { token: string | undefined }) {
               {errors.phone && <p className="text-destructive text-xs">{errors.phone}</p>}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Custom: message textarea */}
+      {template === "custom" && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="su-message">
+            Message <span className="text-destructive">*</span>
+          </Label>
+          <Textarea
+            id="su-message"
+            placeholder="Write your message here…"
+            value={message}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              if (errors.message) setErrors((p) => ({ ...p, message: undefined }));
+            }}
+            className="min-h-36 resize-none"
+            aria-invalid={!!errors.message}
+          />
+          {errors.message && <p className="text-destructive text-xs">{errors.message}</p>}
+        </div>
+      )}
+
+      {/* Promotional sections */}
+      {template === "promotional" && (
+        <div className="flex flex-col gap-6">
+          {/* Hero */}
+          <div className="flex flex-col gap-4">
+            <SectionHeading>Hero</SectionHeading>
+            <ImageUrlField
+              id="su-heroImage"
+              label="Hero Image URL"
+              value={heroImage}
+              onChange={setHeroImage}
+              placeholder="https://cdn.bidchale.com/promo/hero.jpg"
+            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="su-heroCTA">Hero CTA Text</Label>
+              <Input
+                id="su-heroCTA"
+                placeholder="e.g. See For Yourself"
+                value={heroCTA}
+                onChange={(e) => setHeroCTA(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="flex flex-col gap-4">
+            <SectionHeading>Body</SectionHeading>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="su-bodyTitle">Title</Label>
+              <Input
+                id="su-bodyTitle"
+                placeholder="e.g. Your Next Win Awaits"
+                value={bodyTitle}
+                onChange={(e) => setBodyTitle(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="su-bodyText">Body Text</Label>
+              <Textarea
+                id="su-bodyText"
+                placeholder="e.g. These hand-picked auctions are waiting for your bid!"
+                value={bodyText}
+                onChange={(e) => setBodyText(e.target.value)}
+                className="min-h-20 resize-none"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="su-bodyCta">CTA Button Label</Label>
+                <Input
+                  id="su-bodyCta"
+                  placeholder="e.g. Start Winning"
+                  value={bodyCta}
+                  onChange={(e) => setBodyCta(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="su-bodyCtaUrl">CTA URL</Label>
+                <Input
+                  id="su-bodyCtaUrl"
+                  type="url"
+                  placeholder="https://www.bidchale.com/auctions"
+                  value={bodyCtaUrl}
+                  onChange={(e) => setBodyCtaUrl(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Grid */}
+          <div className="flex flex-col gap-4">
+            <SectionHeading>Grid Items</SectionHeading>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="su-gridTitle">Grid Title</Label>
+              <Input
+                id="su-gridTitle"
+                placeholder="e.g. Top Weekend Wins"
+                value={gridTitle}
+                onChange={(e) => setGridTitle(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              {items.map((item, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: positional grid items
+                <div key={i} className="flex items-center gap-2">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground">
+                    {item.image ? (
+                      // biome-ignore lint/performance/noImgElement: user-provided CDN URL preview
+                      <img src={item.image} alt="" className="size-full object-cover" />
+                    ) : (
+                      <ImageIcon className="size-4" />
+                    )}
+                  </div>
+                  <Input
+                    placeholder="Image URL"
+                    value={item.image}
+                    onChange={(e) => updateItem(i, "image", e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    placeholder="Title"
+                    value={item.title}
+                    onChange={(e) => updateItem(i, "title", e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => removeItem(i)}
+                    disabled={items.length === 1}
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <Minus className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              {items.length < 4 && (
+                <Button type="button" variant="outline" size="sm" onClick={addItem} className="w-fit">
+                  <Plus className="size-4" />
+                  Add item
+                </Button>
+              )}
+              <p className="text-muted-foreground text-xs">Up to 4 items. Each needs an image URL and a title.</p>
+            </div>
+          </div>
+
+          {/* Featured */}
+          <div className="flex flex-col gap-4">
+            <SectionHeading>Featured Block</SectionHeading>
+            <ImageUrlField
+              id="su-featuredImage"
+              label="Featured Image URL"
+              value={featuredImage}
+              onChange={setFeaturedImage}
+              placeholder="https://cdn.bidchale.com/promo/labour-day.jpg"
+            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="su-featuredTitle">Featured Title</Label>
+              <Input
+                id="su-featuredTitle"
+                placeholder="e.g. Holiday Hours"
+                value={featuredTitle}
+                onChange={(e) => setFeaturedTitle(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="su-featuredBody">Featured Body</Label>
+              <Textarea
+                id="su-featuredBody"
+                placeholder="e.g. Labour Day is next week! BidChale auctions will continue running."
+                value={featuredBody}
+                onChange={(e) => setFeaturedBody(e.target.value)}
+                className="min-h-20 resize-none"
+              />
+            </div>
+          </div>
         </div>
       )}
 

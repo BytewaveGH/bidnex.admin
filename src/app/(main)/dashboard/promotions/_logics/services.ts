@@ -33,6 +33,24 @@ export interface SendToUserPayload {
   phone?: string;
 }
 
+export interface SendToUserPromotionalPayload {
+  subject: string;
+  channel?: PromotionChannel;
+  email?: string;
+  phone?: string;
+  heroImage?: string;
+  heroCTA?: string;
+  bodyTitle?: string;
+  bodyText?: string;
+  bodyCta?: string;
+  bodyCtaUrl?: string;
+  gridTitle?: string;
+  items?: { image: string; title: string }[];
+  featuredImage?: string;
+  featuredTitle?: string;
+  featuredBody?: string;
+}
+
 export const PromotionServices = {
   Broadcast() {
     return { endpoint: "/api/admin/promotions/broadcast", method: "POST" as const };
