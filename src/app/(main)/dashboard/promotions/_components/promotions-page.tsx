@@ -207,7 +207,8 @@ function BroadcastTab({ token }: { token: string | undefined }) {
   const startUpload = React.useCallback(() => setUploadingCount((c) => c + 1), []);
   const endUpload = React.useCallback(() => setUploadingCount((c) => Math.max(0, c - 1)), []);
 
-  const itemInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+  const gridFileInputRef = React.useRef<HTMLInputElement>(null);
+  const pendingGridIndex = React.useRef<number | null>(null);
   const isAnyUploading = uploadingCount > 0 || items.some((item) => !!item.isUploading);
 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -525,25 +526,29 @@ function BroadcastTab({ token }: { token: string | undefined }) {
                 />
               </div>
               <div className="flex flex-col gap-2">
+                {/* One shared file input; pendingGridIndex.current tells onChange which item to update */}
+                <input
+                  ref={gridFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    const idx = pendingGridIndex.current;
+                    if (file && idx !== null) void handleItemImageUpload(idx, file);
+                    e.target.value = "";
+                    pendingGridIndex.current = null;
+                  }}
+                />
                 {items.map((item, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: positional grid items
                   <div key={i} className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="sr-only"
-                      ref={(el) => {
-                        itemInputRefs.current[i] = el;
-                      }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void handleItemImageUpload(i, file);
-                        e.target.value = "";
-                      }}
-                    />
                     <button
                       type="button"
-                      onClick={() => itemInputRefs.current[i]?.click()}
+                      onClick={() => {
+                        pendingGridIndex.current = i;
+                        gridFileInputRef.current?.click();
+                      }}
                       disabled={!!item.isUploading}
                       className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground transition-colors hover:border-primary/50 disabled:pointer-events-none"
                     >
@@ -682,7 +687,8 @@ function SendToUserTab({ token }: { token: string | undefined }) {
   const startUpload = React.useCallback(() => setUploadingCount((c) => c + 1), []);
   const endUpload = React.useCallback(() => setUploadingCount((c) => Math.max(0, c - 1)), []);
 
-  const itemInputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+  const gridFileInputRef = React.useRef<HTMLInputElement>(null);
+  const pendingGridIndex = React.useRef<number | null>(null);
   const isAnyUploading = uploadingCount > 0 || items.some((item) => !!item.isUploading);
 
   const [errors, setErrors] = React.useState<FieldError>({});
@@ -1038,25 +1044,29 @@ function SendToUserTab({ token }: { token: string | undefined }) {
               />
             </div>
             <div className="flex flex-col gap-2">
+              {/* One shared file input; pendingGridIndex.current tells onChange which item to update */}
+              <input
+                ref={gridFileInputRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  const idx = pendingGridIndex.current;
+                  if (file && idx !== null) void handleItemImageUpload(idx, file);
+                  e.target.value = "";
+                  pendingGridIndex.current = null;
+                }}
+              />
               {items.map((item, i) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: positional grid items
                 <div key={i} className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="sr-only"
-                    ref={(el) => {
-                      itemInputRefs.current[i] = el;
-                    }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void handleItemImageUpload(i, file);
-                      e.target.value = "";
-                    }}
-                  />
                   <button
                     type="button"
-                    onClick={() => itemInputRefs.current[i]?.click()}
+                    onClick={() => {
+                      pendingGridIndex.current = i;
+                      gridFileInputRef.current?.click();
+                    }}
                     disabled={!!item.isUploading}
                     className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground transition-colors hover:border-primary/50 disabled:pointer-events-none"
                   >
